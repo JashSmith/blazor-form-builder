@@ -51,39 +51,39 @@
                 </select>
             </div>
             <div class="chrome-preview" dir="@PreviewDirection" data-testid="chrome-preview">
-                @if (Kind == ChromeBuilderKind.Header && CurrentHeader is { } header)
+                @if (Kind == ChromeBuilderKind.Header && CurrentHeader is { } previewHeader)
                 {
                     <header class="header-preview">
-                        <strong>@header.Brand.Resolve(previewLanguageCode, header.BrandText)</strong>
+                        <strong>@previewHeader.Brand.Resolve(previewLanguageCode, previewHeader.BrandText)</strong>
                         <nav>
-                            @foreach (var item in header.MenuItems)
+                            @foreach (var item in previewHeader.MenuItems)
                             {
                                 <span>@item.LabelResource.Resolve(previewLanguageCode, item.Label)</span>
                             }
                         </nav>
                     </header>
                 }
-                else if (CurrentFooter is { } footer)
+                else if (CurrentFooter is { } previewFooter)
                 {
-                    <StatusFooterPreview Definition="footer" LanguageCode="previewLanguageCode" Direction="PreviewDirection" />
+                    <StatusFooterPreview Definition="previewFooter" LanguageCode="previewLanguageCode" Direction="PreviewDirection" />
                 }
             </div>
         </main>
 
         <aside class="panel settings-panel">
-            @if (Kind == ChromeBuilderKind.Header && CurrentHeader is { } header)
+            @if (Kind == ChromeBuilderKind.Header && CurrentHeader is { } settingsHeader)
             {
                 <h2>Header settings</h2>
-                <label>Name<input @bind="header.Name" @bind:event="oninput" @bind:after="MarkDirty" /></label>
-                <label class="toggle"><input type="checkbox" @bind="header.IsVisible" @bind:after="MarkDirty" /> Visible</label>
+                <label>Name<input @bind="settingsHeader.Name" @bind:event="oninput" @bind:after="MarkDirty" /></label>
+                <label class="toggle"><input type="checkbox" @bind="settingsHeader.IsVisible" @bind:after="MarkDirty" /> Visible</label>
                 <h3>Languages</h3>
-                <LanguageSelector Languages="Workspace.Localization.Languages" LanguageCodes="header.LanguageCodes"
+                <LanguageSelector Languages="Workspace.Localization.Languages" LanguageCodes="settingsHeader.LanguageCodes"
                                   DefaultLanguageCode="Workspace.Localization.DefaultLanguageCode" Changed="MarkDirty" TestId="header-languages" />
                 <h3>Brand translations</h3>
-                <LocalizedTextEditor Definition="header.Brand" Languages="Workspace.Localization.Languages"
-                                     LanguageCodes="header.LanguageCodes" Changed="MarkDirty" />
+                <LocalizedTextEditor Definition="settingsHeader.Brand" Languages="Workspace.Localization.Languages"
+                                     LanguageCodes="settingsHeader.LanguageCodes" Changed="MarkDirty" />
                 <h3>Menu items</h3>
-                @foreach (var item in header.MenuItems)
+                @foreach (var item in settingsHeader.MenuItems)
                 {
                     <div @key="item.Id" class="item-editor">
                         <label>URL<input @bind="item.Url" @bind:event="oninput" @bind:after="MarkDirty" /></label>

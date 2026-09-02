@@ -77,12 +77,12 @@
                 <div class="page-canvas @ViewportClass" dir="@CurrentDirection"
                      @ondragover:preventDefault
                      @ondrop="DropAtEnd">
-                    @if (CurrentHeader is { IsVisible: true } header)
+                    @if (CurrentHeader is { IsVisible: true } previewHeader)
                     {
                         <header class="canvas-header">
-                            <strong>@header.Brand.Resolve(previewLanguageCode, header.BrandText)</strong>
+                            <strong>@previewHeader.Brand.Resolve(previewLanguageCode, previewHeader.BrandText)</strong>
                             <nav>
-                                @foreach (var item in header.MenuItems)
+                                @foreach (var item in previewHeader.MenuItems)
                                 {
                                     <span>@item.LabelResource.Resolve(previewLanguageCode, item.Label)</span>
                                 }
@@ -120,9 +120,9 @@
                         }
                     </div>
 
-                    @if (CurrentFooter is { IsVisible: true } footer)
+                    @if (CurrentFooter is { IsVisible: true } previewFooter)
                     {
-                        <StatusFooterPreview Definition="footer" LanguageCode="previewLanguageCode" Direction="CurrentDirection" />
+                        <StatusFooterPreview Definition="previewFooter" LanguageCode="previewLanguageCode" Direction="CurrentDirection" />
                     }
                 </div>
             </div>
@@ -136,18 +136,18 @@
                 <label>Header
                     <select value="@CurrentPage.HeaderId" @onchange="AssignHeader">
                         <option value="">No header</option>
-                        @foreach (var header in Workspace.Headers)
+                        @foreach (var headerOption in Workspace.Headers)
                         {
-                            <option value="@header.Id">@header.Name</option>
+                            <option value="@headerOption.Id">@headerOption.Name</option>
                         }
                     </select>
                 </label>
                 <label>Footer
                     <select value="@CurrentPage.FooterId" @onchange="AssignFooter">
                         <option value="">No footer</option>
-                        @foreach (var footer in Workspace.Footers)
+                        @foreach (var footerOption in Workspace.Footers)
                         {
-                            <option value="@footer.Id">@footer.Name</option>
+                            <option value="@footerOption.Id">@footerOption.Name</option>
                         }
                     </select>
                 </label>
