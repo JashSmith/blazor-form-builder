@@ -1,0 +1,13 @@
+.workspace-shell { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 1rem; max-width: 1720px; margin: 0 auto; }
+.workspace-navigation { display: flex; min-height: calc(100vh - 3rem); padding: 1rem; flex-direction: column; background: #101828; border-radius: 16px; }
+.workspace-brand { display: flex; align-items: center; gap: .7rem; padding: .5rem; color: #fff; }
+.workspace-brand small { display: block; margin-top: .15rem; color: #98a2b3; font-size: .72rem; }
+.brand-mark { display: grid; width: 2.2rem; height: 2.2rem; place-items: center; background: #7f56d9; border-radius: 8px; font-weight: 800; }
+nav { display: grid; gap: .4rem; margin-top: 1.5rem; }
+nav button { display: flex; align-items: center; gap: .65rem; padding: .75rem; color: #d0d5dd; background: transparent; border: 0; border-radius: 8px; cursor: pointer; text-align: left; }
+nav button:hover, nav button.active { color: #fff; background: #344054; }
+nav button span { font-size: 1.1rem; }
+.workspace-help { display: grid; gap: .35rem; margin-top: auto; padding: .8rem; color: #d0d5dd; background: #1d2939; border-radius: 9px; font-size: .75rem; }
+.workspace-help span { color: #98a2b3; line-height: 1.45; }
+.workspace-content { min-width: 0; }
+@media (max-width: 900px) { .workspace-shell { grid-template-columns: 1fr; } .workspace-navigation { min-height: auto; } nav { grid-template-columns: 1fr 1fr; margin-top: .75rem; } .workspace-help { display: none; } }

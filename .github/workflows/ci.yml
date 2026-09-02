@@ -20,3 +20,4 @@ jobs:
       - run: dotnet restore BlazorFormBuilder.slnx
       - run: dotnet build BlazorFormBuilder.slnx --configuration Release --no-restore
       - run: dotnet test BlazorFormBuilder.slnx --configuration Release --no-build --collect:"XPlat Code Coverage"
+      - run: dotnet publish src/BlazorFormBuilder.App --configuration Release --no-restore

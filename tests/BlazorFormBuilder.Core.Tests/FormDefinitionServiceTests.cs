@@ -71,6 +71,39 @@ public sealed class FormDefinitionServiceTests
         Assert.Equal("text3", FormDefinitionService.CreateUniqueKey(form, "text"));
     }
 
+    [Fact]
+    public void MoveFieldToIndexSupportsDragAndDropOrdering()
+    {
+        var form = FormDefinitionService.Create("Registration");
+        var first = Field("first");
+        var second = Field("second");
+        FormDefinitionService.AddField(form, first);
+        FormDefinitionService.AddField(form, second);
+
+        var moved = FormDefinitionService.MoveFieldToIndex(form, second.Id, 0);
+
+        Assert.True(moved);
+        Assert.Equal(second.Id, form.Fields[0].Id);
+        Assert.Equal(first.Id, form.Fields[1].Id);
+    }
+
+    [Fact]
+    public void MoveFieldBeforeLaterTargetKeepsDropPosition()
+    {
+        var form = FormDefinitionService.Create("Registration");
+        var first = Field("first");
+        var second = Field("second");
+        var third = Field("third");
+        FormDefinitionService.AddField(form, first);
+        FormDefinitionService.AddField(form, second);
+        FormDefinitionService.AddField(form, third);
+
+        FormDefinitionService.MoveFieldToIndex(form, first.Id, 2);
+
+        Assert.Equal(first.Id, form.Fields[1].Id);
+        Assert.Equal(third.Id, form.Fields[2].Id);
+    }
+
     private static FormFieldDefinition Field(string key) => new()
     {
         Id = Guid.NewGuid(),

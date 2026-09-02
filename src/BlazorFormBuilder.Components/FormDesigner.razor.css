@@ -14,6 +14,7 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .muted { color: #667085; font-size: .875rem; }
 .toolbox-item { display: block; width: 100%; margin-top: .65rem; padding: .7rem; text-align: left; background: #f8f9fc; border: 1px solid #d0d5dd; border-radius: 8px; cursor: pointer; }
 .toolbox-item:hover { color: #53389e; background: #f4ebff; border-color: #b692f6; }
+.drag-handle { margin-right: .45rem; color: #98a2b3; }
 .canvas-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-bottom: 1rem; border-bottom: 1px solid #eaecf0; }
 .eyebrow { display: block; color: #6941c6; font-size: .72rem; font-weight: 700; letter-spacing: .08em; }
 .form-name { margin-top: .3rem; border: 0; outline: 0; font-size: 1.35rem; font-weight: 650; width: 100%; }
@@ -22,7 +23,7 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .validation-summary ul { margin: .4rem 0 0; padding-left: 1.1rem; }
 .empty-state { display: flex; width: 100%; min-height: 240px; margin-top: 1rem; flex-direction: column; align-items: center; justify-content: center; gap: .4rem; color: #667085; background: #fcfcfd; border: 2px dashed #d0d5dd; border-radius: 12px; cursor: pointer; }
 .field-list { display: grid; gap: .8rem; margin-top: 1rem; }
-.field-card { position: relative; padding: 1rem; border: 1px solid #d0d5dd; border-radius: 10px; cursor: pointer; }
+.field-card { position: relative; padding: 1rem; border: 1px solid #d0d5dd; border-radius: 10px; cursor: grab; }
 .field-card.selected { border-color: #7f56d9; box-shadow: 0 0 0 3px #f4ebff; }
 .field-actions { position: absolute; top: .45rem; right: .45rem; display: flex; gap: .25rem; }
 .field-actions button { width: 1.8rem; height: 1.8rem; border: 1px solid #d0d5dd; background: #fff; border-radius: 6px; cursor: pointer; }

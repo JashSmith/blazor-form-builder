@@ -10,5 +10,6 @@ builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 builder.Services.AddStandardFormFieldPlugins();
 builder.Services.AddScoped<IFormDefinitionStore, BrowserFormDefinitionStore>();
+builder.Services.AddScoped<IBuilderWorkspaceStore, BrowserBuilderWorkspaceStore>();
 
 await builder.Build().RunAsync();

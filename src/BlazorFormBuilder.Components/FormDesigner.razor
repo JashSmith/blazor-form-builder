@@ -27,14 +27,19 @@
         <div class="form-designer">
             <aside class="designer-panel toolbox" aria-label="Field toolbox">
                 <h2>Fields</h2>
-                <p class="muted">Choose a field to add it to the form.</p>
+                <p class="muted">Drag a field onto the canvas or click to append.</p>
                 @foreach (var plugin in Plugins)
                 {
-                    <button class="toolbox-item" @onclick="() => AddField(plugin)">+ @plugin.DisplayName</button>
+                    <button class="toolbox-item"
+                            draggable="true"
+                            @ondragstart="() => BeginPluginDrag(plugin.Type)"
+                            @onclick="() => AddField(plugin)">
+                        <span class="drag-handle">⋮⋮</span> @plugin.DisplayName
+                    </button>
                 }
             </aside>
 
-            <main class="designer-canvas">
+            <main class="designer-canvas" @ondragover:preventDefault @ondrop="DropAtEnd">
                 <div class="canvas-heading">
                     <div>
                         <span class="eyebrow">FORM NAME</span>
@@ -66,12 +71,18 @@
                 else
                 {
                     <div class="field-list">
-                        @foreach (var item in Definition.Fields.OrderBy(item => item.Order))
+                        @for (var index = 0; index < Definition.Fields.Count; index++)
                         {
+                            var item = Definition.Fields[index];
                             var plugin = PluginsByType[item.Type];
                             <article @key="item.Id"
+                                     draggable="true"
                                      class="field-card @(selectedFieldId == item.Id ? "selected" : null)"
-                                     @onclick="() => Select(item.Id)">
+                                     @onclick="() => Select(item.Id)"
+                                     @ondragstart="() => BeginFieldDrag(item.Id)"
+                                     @ondragover:preventDefault
+                                     @ondrop="() => DropBefore(item.Id)"
+                                     @ondrop:stopPropagation>
                                 <DynamicComponent Type="plugin.DesignerComponentType"
                                                   Parameters="FormFieldComponentParameters.ForDesigner(item)" />
                                 <div class="field-actions">
@@ -130,6 +141,8 @@
     private bool validationRequested;
     private bool saveSucceeded;
     private string? statusMessage;
+    private Guid? draggedFieldId;
+    private string? draggedPluginType;
 
     private FormFieldDefinition? SelectedField =>
         Definition.Fields.FirstOrDefault(item => item.Id == selectedFieldId);
@@ -158,7 +171,7 @@
                 saveSucceeded = true;
             }
         }
-        catch (Exception exception) when (exception is InvalidOperationException or System.Text.Json.JsonException)
+        catch (Exception exception) when (exception is InvalidOperationException or System.Text.Json.JsonException or JSException)
         {
             statusMessage = "Saved draft could not be restored";
         }
@@ -174,14 +187,57 @@
 
     private void AddField(IFormFieldPlugin plugin)
     {
+        AddField(plugin, Definition.Fields.Count);
+    }
+
+    private void AddField(IFormFieldPlugin plugin, int index)
+    {
         var key = FormDefinitionService.CreateUniqueKey(Definition, plugin.Type);
         var item = plugin.CreateField(key);
         FormDefinitionService.AddField(Definition, item);
+        FormDefinitionService.MoveFieldToIndex(Definition, item.Id, index);
         selectedFieldId = item.Id;
         MarkDirty();
     }
 
     private void Select(Guid fieldId) => selectedFieldId = fieldId;
+
+    private void BeginPluginDrag(string pluginType)
+    {
+        draggedPluginType = pluginType;
+        draggedFieldId = null;
+    }
+
+    private void BeginFieldDrag(Guid fieldId)
+    {
+        draggedFieldId = fieldId;
+        draggedPluginType = null;
+    }
+
+    private void DropBefore(Guid targetFieldId)
+    {
+        var index = Definition.Fields.FindIndex(item => item.Id == targetFieldId);
+        DropAt(index);
+    }
+
+    private void DropAtEnd() => DropAt(Definition.Fields.Count);
+
+    private void DropAt(int index)
+    {
+        if (draggedPluginType is not null && PluginsByType.TryGetValue(draggedPluginType, out var plugin))
+        {
+            AddField(plugin, index);
+        }
+        else if (draggedFieldId is { } fieldId)
+        {
+            FormDefinitionService.MoveFieldToIndex(Definition, fieldId, index);
+            selectedFieldId = fieldId;
+            MarkDirty();
+        }
+
+        draggedPluginType = null;
+        draggedFieldId = null;
+    }
 
     private void Remove(Guid fieldId)
     {
@@ -213,9 +269,17 @@
         }
 
         FormDefinitionService.Touch(Definition);
-        await Store.SaveAsync(Definition);
-        statusMessage = "Saved locally";
-        saveSucceeded = true;
+        try
+        {
+            await Store.SaveAsync(Definition);
+            statusMessage = "Saved locally";
+            saveSucceeded = true;
+        }
+        catch (JSException)
+        {
+            statusMessage = "Browser storage is unavailable";
+            saveSucceeded = false;
+        }
     }
 
     private void MarkDirty()

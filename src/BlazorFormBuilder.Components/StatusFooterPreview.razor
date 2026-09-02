@@ -1,0 +1,82 @@
+@implements IAsyncDisposable
+
+<footer class="status-footer">
+    <div class="footer-main">
+        <span>@Definition.CopyrightText</span>
+        <nav>
+            @foreach (var link in Definition.Links)
+            {
+                <span>@link.Label</span>
+            }
+        </nav>
+    </div>
+    @if (Definition.Widgets.Count > 0)
+    {
+        <div class="status-widgets">
+            @if (Definition.Widgets.Contains(FooterWidgetKind.Messages))
+            {
+                <span title="Messages">✉ 0 messages</span>
+            }
+            @if (Definition.Widgets.Contains(FooterWidgetKind.Logs))
+            {
+                <span title="Logs">≡ Logs ready</span>
+            }
+            @if (Definition.Widgets.Contains(FooterWidgetKind.Progress))
+            {
+                <span class="progress-widget" title="Progress"><i><b></b></i> 35%</span>
+            }
+            @if (Definition.Widgets.Contains(FooterWidgetKind.Connection))
+            {
+                <span title="Connection"><em></em> Online</span>
+            }
+            @if (Definition.Widgets.Contains(FooterWidgetKind.Clock))
+            {
+                <span title="Clock">◷ @currentTime</span>
+            }
+        </div>
+    }
+</footer>
+
+@code {
+    [Parameter, EditorRequired]
+    public required FooterDefinition Definition { get; set; }
+
+    private readonly CancellationTokenSource cancellation = new();
+    private PeriodicTimer? timer;
+    private string currentTime = DateTime.Now.ToString("HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture);
+
+    protected override void OnInitialized()
+    {
+        timer = new(TimeSpan.FromSeconds(1));
+        _ = UpdateClockAsync();
+    }
+
+    private async Task UpdateClockAsync()
+    {
+        if (timer is null)
+        {
+            return;
+        }
+
+        try
+        {
+            while (await timer.WaitForNextTickAsync(cancellation.Token))
+            {
+                currentTime = DateTime.Now.ToString("HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture);
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Component disposal stops the clock loop.
+        }
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        cancellation.Cancel();
+        cancellation.Dispose();
+        timer?.Dispose();
+        return ValueTask.CompletedTask;
+    }
+}

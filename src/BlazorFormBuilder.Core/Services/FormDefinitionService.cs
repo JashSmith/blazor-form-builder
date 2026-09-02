@@ -57,6 +57,28 @@ public static class FormDefinitionService
         return true;
     }
 
+    public static bool MoveFieldToIndex(FormDefinition form, Guid fieldId, int targetIndex)
+    {
+        ArgumentNullException.ThrowIfNull(form);
+        var sourceIndex = form.Fields.FindIndex(item => item.Id == fieldId);
+        if (sourceIndex < 0 || form.Fields.Count == 0)
+        {
+            return false;
+        }
+
+        var fieldDefinition = form.Fields[sourceIndex];
+        form.Fields.RemoveAt(sourceIndex);
+        if (sourceIndex < targetIndex)
+        {
+            targetIndex--;
+        }
+
+        form.Fields.Insert(Math.Clamp(targetIndex, 0, form.Fields.Count), fieldDefinition);
+        NormalizeOrder(form);
+        Touch(form);
+        return true;
+    }
+
     public static string CreateUniqueKey(FormDefinition form, string type)
     {
         ArgumentNullException.ThrowIfNull(form);

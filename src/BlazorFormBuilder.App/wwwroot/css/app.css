@@ -4,3 +4,5 @@ body { margin: 0; padding: 1.5rem; }
 button, input { font: inherit; }
 .loading { display: grid; min-height: 80vh; place-items: center; color: #6941c6; }
 #blazor-error-ui { display: none; position: fixed; right: 1rem; bottom: 1rem; padding: 1rem; background: #fef3f2; border: 1px solid #fda29b; border-radius: 8px; }
+.fatal-error { max-width: 640px; margin: 4rem auto; padding: 2rem; background: #fff; border: 1px solid #fda29b; border-radius: 12px; }
+@media (max-width: 720px) { body { padding: .75rem; } }

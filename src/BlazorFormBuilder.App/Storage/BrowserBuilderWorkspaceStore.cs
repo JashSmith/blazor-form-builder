@@ -5,12 +5,12 @@ using Microsoft.JSInterop;
 
 namespace BlazorFormBuilder.App.Storage;
 
-public sealed class BrowserFormDefinitionStore(IJSRuntime javaScript) : IFormDefinitionStore
+public sealed class BrowserBuilderWorkspaceStore(IJSRuntime javaScript) : IBuilderWorkspaceStore
 {
-    private const string StorageKey = "blazor-form-builder:draft";
+    private const string StorageKey = "blazor-form-builder:workspace";
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
-    public async ValueTask<FormDefinition?> LoadAsync(CancellationToken cancellationToken = default)
+    public async ValueTask<BuilderWorkspaceDefinition?> LoadAsync(CancellationToken cancellationToken = default)
     {
         var json = await javaScript.InvokeAsync<string?>(
             "blazorFormBuilderStorage.get",
@@ -19,15 +19,15 @@ public sealed class BrowserFormDefinitionStore(IJSRuntime javaScript) : IFormDef
 
         return string.IsNullOrWhiteSpace(json)
             ? null
-            : JsonSerializer.Deserialize<FormDefinition>(json, SerializerOptions);
+            : JsonSerializer.Deserialize<BuilderWorkspaceDefinition>(json, SerializerOptions);
     }
 
     public async ValueTask SaveAsync(
-        FormDefinition definition,
+        BuilderWorkspaceDefinition workspace,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(definition);
-        var json = JsonSerializer.Serialize(definition, SerializerOptions);
+        ArgumentNullException.ThrowIfNull(workspace);
+        var json = JsonSerializer.Serialize(workspace, SerializerOptions);
 
         await javaScript.InvokeVoidAsync(
             "blazorFormBuilderStorage.set",

@@ -1,0 +1,45 @@
+<div class="workspace-shell">
+    <aside class="workspace-navigation">
+        <div class="workspace-brand">
+            <span class="brand-mark">BF</span>
+            <div><strong>Builder</strong><small>Low-code workspace</small></div>
+        </div>
+
+        <nav aria-label="Builder sections">
+            <button class="@(activeTool == BuilderTool.Pages ? "active" : null)" @onclick="() => SelectTool(BuilderTool.Pages)">
+                <span>▦</span> Page builder
+            </button>
+            <button class="@(activeTool == BuilderTool.Forms ? "active" : null)" @onclick="() => SelectTool(BuilderTool.Forms)">
+                <span>☷</span> Form builder
+            </button>
+        </nav>
+
+        <div class="workspace-help">
+            <strong>Everything is editable</strong>
+            <span>Click an item for settings or drag it onto a canvas.</span>
+        </div>
+    </aside>
+
+    <main class="workspace-content">
+        @if (activeTool == BuilderTool.Pages)
+        {
+            <PageDesigner />
+        }
+        else
+        {
+            <FormDesigner />
+        }
+    </main>
+</div>
+
+@code {
+    private BuilderTool activeTool = BuilderTool.Pages;
+
+    private void SelectTool(BuilderTool tool) => activeTool = tool;
+
+    private enum BuilderTool
+    {
+        Pages,
+        Forms
+    }
+}

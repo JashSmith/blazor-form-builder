@@ -1,6 +1,27 @@
-# Blazor Form Builder
+# Blazor Form & Page Builder
 
-A plugin-first, low-code form designer built with standalone Blazor WebAssembly and .NET 10. This repository is the foundation for a larger form and BPMN process-management platform.
+A plugin-first, low-code page and form designer built with standalone Blazor WebAssembly and .NET 10. This repository is the foundation for a larger form and BPMN process-management platform.
+
+## Builder workspace
+
+The application now starts in a working builder workspace with two tools:
+
+- **Page builder** manages multiple pages, responsive grids, layout templates and page chrome.
+- **Form builder** creates runnable forms with drag-and-drop fields and plugin-owned validation.
+
+Every draggable toolbox item also supports click-to-add for touch devices and accessibility.
+
+### Page builder capabilities
+
+- create and switch between multiple pages;
+- apply Blank, Landing, Dashboard, or Sidebar skeletons;
+- drag Content, Hero, Form, Sidebar, Cards, and Empty boxes onto the canvas;
+- reorder boxes and configure their responsive column spans;
+- independently set Desktop (1–24), Tablet (1–16), and Mobile (1–8) grid columns;
+- switch the canvas between 100%, 768px, and 390px viewport previews;
+- build a header with editable brand and menu items;
+- build a footer with links and live Messages, Logs, Progress, Clock, and Connection widgets;
+- save and restore the complete workspace in browser storage.
 
 ## First vertical slice
 
@@ -54,7 +75,7 @@ After this repository bootstrap, create `develop` from `main` and open subsequen
 
 ## Current workflow
 
-Create fields in the toolbox, configure them in the property panel, save the valid definition, then use **Preview form** to enter values and exercise each plugin's runtime validation.
+Open **Form builder**, drag fields from the toolbox onto the canvas, reorder them by dragging, configure them in the property panel, save the valid definition, then use **Preview form** to enter values and exercise each plugin's runtime validation.
 
 Drafts are currently stored in the browser's `localStorage` behind the `IFormDefinitionStore` abstraction. A server implementation can replace it without changing the designer RCL.
 
