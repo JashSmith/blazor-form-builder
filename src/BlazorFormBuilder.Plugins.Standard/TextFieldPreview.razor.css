@@ -1,0 +1,3 @@
+.preview-label { display: grid; gap: .4rem; color: #344054; font-size: .875rem; font-weight: 600; }
+.preview-label span { color: #d92d20; }
+.preview-label input { max-width: 100%; padding: .7rem; color: #667085; background: #f9fafb; border: 1px solid #d0d5dd; border-radius: 8px; }

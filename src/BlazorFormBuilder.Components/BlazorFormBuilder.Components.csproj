@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="../BlazorFormBuilder.Abstractions/BlazorFormBuilder.Abstractions.csproj" />
+    <ProjectReference Include="../BlazorFormBuilder.Core/BlazorFormBuilder.Core.csproj" />
+  </ItemGroup>
+</Project>

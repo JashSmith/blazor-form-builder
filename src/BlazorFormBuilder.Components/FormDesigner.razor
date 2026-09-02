@@ -1,0 +1,122 @@
+@inject IEnumerable<IFormFieldPlugin> AvailablePlugins
+
+<div class="form-designer">
+    <aside class="designer-panel toolbox" aria-label="Field toolbox">
+        <h2>Fields</h2>
+        <p class="muted">Choose a field to add it to the form.</p>
+        @foreach (var plugin in Plugins)
+        {
+            <button class="toolbox-item" @onclick="() => AddField(plugin)">+ @plugin.DisplayName</button>
+        }
+    </aside>
+
+    <main class="designer-canvas">
+        <div class="canvas-heading">
+            <div>
+                <span class="eyebrow">FORM DESIGNER</span>
+                <input class="form-name" aria-label="Form name" @bind="Definition.Name" />
+            </div>
+            <button class="secondary" @onclick="ToggleJson">@(showJson ? "Hide JSON" : "View JSON")</button>
+        </div>
+
+        @if (Definition.Fields.Count == 0)
+        {
+            <button class="empty-state" @onclick="AddFirstField">
+                <strong>Your canvas is empty</strong>
+                <span>Add the first field to start designing.</span>
+            </button>
+        }
+        else
+        {
+            <div class="field-list">
+                @foreach (var field in Definition.Fields.OrderBy(field => field.Order))
+                {
+                    var plugin = PluginsByType[field.Type];
+                    <article class="field-card @(selectedFieldId == field.Id ? "selected" : null)"
+                             @onclick="() => Select(field.Id)">
+                        <DynamicComponent Type="plugin.PreviewComponentType"
+                                          Parameters="FormFieldPreviewParameters.For(field)" />
+                        <div class="field-actions">
+                            <button title="Move up" disabled="@(field.Order == 0)" @onclick="() => Move(field.Id, -1)" @onclick:stopPropagation>↑</button>
+                            <button title="Move down" disabled="@(field.Order == Definition.Fields.Count - 1)" @onclick="() => Move(field.Id, 1)" @onclick:stopPropagation>↓</button>
+                            <button class="danger" title="Remove" @onclick="() => Remove(field.Id)" @onclick:stopPropagation>×</button>
+                        </div>
+                    </article>
+                }
+            </div>
+        }
+
+        @if (showJson)
+        {
+            <pre class="json-preview">@SerializedDefinition</pre>
+        }
+    </main>
+
+    <aside class="designer-panel properties" aria-label="Field properties">
+        <h2>Properties</h2>
+        @{ var selectedField = SelectedField; }
+        @if (selectedField is null)
+        {
+            <p class="muted">Select a field on the canvas to edit it.</p>
+        }
+        else
+        {
+            <label>Label<input @bind="selectedField.Label" @bind:event="oninput" /></label>
+            <label>Key<input @bind="selectedField.Key" @bind:event="oninput" /></label>
+            <label>Placeholder<input @bind="selectedField.Placeholder" @bind:event="oninput" /></label>
+            <label class="checkbox"><input type="checkbox" @bind="selectedField.IsRequired" /> Required</label>
+        }
+    </aside>
+</div>
+
+@code {
+    private readonly FormDefinition Definition = FormDefinitionService.Create("Customer intake");
+    private IReadOnlyList<IFormFieldPlugin> Plugins = [];
+    private IReadOnlyDictionary<string, IFormFieldPlugin> PluginsByType = new Dictionary<string, IFormFieldPlugin>();
+    private Guid? selectedFieldId;
+    private bool showJson;
+
+    private FormFieldDefinition? SelectedField =>
+        Definition.Fields.FirstOrDefault(field => field.Id == selectedFieldId);
+
+    private string SerializedDefinition => System.Text.Json.JsonSerializer.Serialize(
+        Definition,
+        new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+
+    protected override void OnInitialized()
+    {
+        Plugins = AvailablePlugins.OrderBy(plugin => plugin.DisplayName).ToArray();
+        PluginsByType = Plugins.ToDictionary(plugin => plugin.Type, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private void AddFirstField()
+    {
+        if (Plugins.Count > 0)
+        {
+            AddField(Plugins[0]);
+        }
+    }
+
+    private void AddField(IFormFieldPlugin plugin)
+    {
+        var key = FormDefinitionService.CreateUniqueKey(Definition, plugin.Type);
+        var field = plugin.CreateField(key);
+        FormDefinitionService.AddField(Definition, field);
+        selectedFieldId = field.Id;
+    }
+
+    private void Select(Guid fieldId) => selectedFieldId = fieldId;
+
+    private void Remove(Guid fieldId)
+    {
+        FormDefinitionService.RemoveField(Definition, fieldId);
+        if (selectedFieldId == fieldId)
+        {
+            selectedFieldId = null;
+        }
+    }
+
+    private void Move(Guid fieldId, int offset) => FormDefinitionService.MoveField(Definition, fieldId, offset);
+
+    private void ToggleJson() => showJson = !showJson;
+}

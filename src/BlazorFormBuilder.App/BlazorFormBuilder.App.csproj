@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" PrivateAssets="all" />
+    <ProjectReference Include="../BlazorFormBuilder.Components/BlazorFormBuilder.Components.csproj" />
+    <ProjectReference Include="../BlazorFormBuilder.Plugins.Standard/BlazorFormBuilder.Plugins.Standard.csproj" />
+  </ItemGroup>
+</Project>

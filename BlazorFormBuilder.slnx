@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/BlazorFormBuilder.Core/BlazorFormBuilder.Core.csproj" />
+    <Project Path="src/BlazorFormBuilder.Abstractions/BlazorFormBuilder.Abstractions.csproj" />
+    <Project Path="src/BlazorFormBuilder.Components/BlazorFormBuilder.Components.csproj" />
+    <Project Path="src/BlazorFormBuilder.Plugins.Standard/BlazorFormBuilder.Plugins.Standard.csproj" />
+    <Project Path="src/BlazorFormBuilder.App/BlazorFormBuilder.App.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/BlazorFormBuilder.Core.Tests/BlazorFormBuilder.Core.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,9 @@
+<label class="preview-label">
+    @Field.Label @if (Field.IsRequired) { <span aria-label="required">*</span> }
+    <input placeholder="@Field.Placeholder" disabled />
+</label>
+
+@code {
+    [Parameter, EditorRequired]
+    public required FormFieldDefinition Field { get; set; }
+}

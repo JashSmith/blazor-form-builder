@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../BlazorFormBuilder.Core/BlazorFormBuilder.Core.csproj" />
+  </ItemGroup>
+</Project>

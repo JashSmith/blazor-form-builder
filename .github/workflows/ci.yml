@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop, "feature/**"]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet restore BlazorFormBuilder.slnx
+      - run: dotnet build BlazorFormBuilder.slnx --configuration Release --no-restore
+      - run: dotnet test BlazorFormBuilder.slnx --configuration Release --no-build --collect:"XPlat Code Coverage"
