@@ -6,6 +6,6 @@ public static class FormFieldPreviewParameters
 {
     public const string Field = nameof(Field);
 
-    public static IReadOnlyDictionary<string, object> For(FormFieldDefinition field) =>
+    public static IDictionary<string, object> For(FormFieldDefinition field) =>
         new Dictionary<string, object> { [Field] = field };
 }

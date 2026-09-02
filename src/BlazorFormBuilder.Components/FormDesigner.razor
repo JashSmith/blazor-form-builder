@@ -77,7 +77,7 @@
     private bool showJson;
 
     private FormFieldDefinition? SelectedField =>
-        Definition.Fields.FirstOrDefault(field => field.Id == selectedFieldId);
+        Definition.Fields.FirstOrDefault(item => item.Id == selectedFieldId);
 
     private string SerializedDefinition => System.Text.Json.JsonSerializer.Serialize(
         Definition,

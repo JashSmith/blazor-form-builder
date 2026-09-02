@@ -6,7 +6,7 @@ namespace BlazorFormBuilder.Core.Tests;
 public sealed class FormDefinitionServiceTests
 {
     [Fact]
-    public void AddField_AppendsFieldAndSetsOrder()
+    public void AddFieldAppendsFieldAndSetsOrder()
     {
         var form = FormDefinitionService.Create("Registration");
         var field = Field("email");
@@ -18,7 +18,7 @@ public sealed class FormDefinitionServiceTests
     }
 
     [Fact]
-    public void AddField_RejectsDuplicateKeyIgnoringCase()
+    public void AddFieldRejectsDuplicateKeyIgnoringCase()
     {
         var form = FormDefinitionService.Create("Registration");
         FormDefinitionService.AddField(form, Field("email"));
@@ -29,7 +29,7 @@ public sealed class FormDefinitionServiceTests
     }
 
     [Fact]
-    public void MoveField_ReordersAndNormalizesOrder()
+    public void MoveFieldReordersAndNormalizesOrder()
     {
         var form = FormDefinitionService.Create("Registration");
         var first = Field("first");
@@ -41,11 +41,14 @@ public sealed class FormDefinitionServiceTests
 
         Assert.True(moved);
         Assert.Equal(second.Id, form.Fields[0].Id);
-        Assert.Equal(new[] { 0, 1 }, form.Fields.Select(field => field.Order));
+        Assert.Collection(
+            form.Fields,
+            field => Assert.Equal(0, field.Order),
+            field => Assert.Equal(1, field.Order));
     }
 
     [Fact]
-    public void RemoveField_NormalizesRemainingOrder()
+    public void RemoveFieldNormalizesRemainingOrder()
     {
         var form = FormDefinitionService.Create("Registration");
         var first = Field("first");
@@ -59,7 +62,7 @@ public sealed class FormDefinitionServiceTests
     }
 
     [Fact]
-    public void CreateUniqueKey_IncrementsExistingSuffix()
+    public void CreateUniqueKeyIncrementsExistingSuffix()
     {
         var form = FormDefinitionService.Create("Registration");
         FormDefinitionService.AddField(form, Field("text"));
