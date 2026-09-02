@@ -88,7 +88,7 @@
                     <div @key="item.Id" class="item-editor">
                         <label>URL<input @bind="item.Url" @bind:event="oninput" @bind:after="MarkDirty" /></label>
                         <LocalizedTextEditor Definition="item.LabelResource" Languages="Workspace.Localization.Languages"
-                                             LanguageCodes="header.LanguageCodes" Changed="MarkDirty" />
+                                             LanguageCodes="settingsHeader.LanguageCodes" Changed="MarkDirty" />
                         <button class="danger" @onclick="() => RemoveHeaderItem(item.Id)">Remove item</button>
                     </div>
                 }
