@@ -27,6 +27,7 @@ public static class FormDefinitionService
 
         field.Order = form.Fields.Count;
         form.Fields.Add(field);
+        Touch(form);
     }
 
     public static void RemoveField(FormDefinition form, Guid fieldId)
@@ -34,6 +35,7 @@ public static class FormDefinitionService
         ArgumentNullException.ThrowIfNull(form);
         form.Fields.RemoveAll(field => field.Id == fieldId);
         NormalizeOrder(form);
+        Touch(form);
     }
 
     public static bool MoveField(FormDefinition form, Guid fieldId, int offset)
@@ -51,6 +53,29 @@ public static class FormDefinitionService
         (form.Fields[currentIndex], form.Fields[targetIndex]) =
             (form.Fields[targetIndex], form.Fields[currentIndex]);
         NormalizeOrder(form);
+        Touch(form);
+        return true;
+    }
+
+    public static bool MoveFieldToIndex(FormDefinition form, Guid fieldId, int targetIndex)
+    {
+        ArgumentNullException.ThrowIfNull(form);
+        var sourceIndex = form.Fields.FindIndex(item => item.Id == fieldId);
+        if (sourceIndex < 0 || form.Fields.Count == 0)
+        {
+            return false;
+        }
+
+        var fieldDefinition = form.Fields[sourceIndex];
+        form.Fields.RemoveAt(sourceIndex);
+        if (sourceIndex < targetIndex)
+        {
+            targetIndex--;
+        }
+
+        form.Fields.Insert(Math.Clamp(targetIndex, 0, form.Fields.Count), fieldDefinition);
+        NormalizeOrder(form);
+        Touch(form);
         return true;
     }
 
@@ -80,5 +105,11 @@ public static class FormDefinitionService
         {
             form.Fields[index].Order = index;
         }
+    }
+
+    public static void Touch(FormDefinition form)
+    {
+        ArgumentNullException.ThrowIfNull(form);
+        form.UpdatedAtUtc = DateTimeOffset.UtcNow;
     }
 }

@@ -8,5 +8,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/BlazorFormBuilder.Core.Tests/BlazorFormBuilder.Core.Tests.csproj" />
+    <Project Path="tests/BlazorFormBuilder.Components.Tests/BlazorFormBuilder.Components.Tests.csproj" />
   </Folder>
 </Solution>

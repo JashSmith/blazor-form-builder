@@ -8,7 +8,11 @@ public interface IFormFieldPlugin
 
     string DisplayName { get; }
 
-    System.Type PreviewComponentType { get; }
+    System.Type DesignerComponentType { get; }
+
+    System.Type RuntimeComponentType { get; }
 
     FormFieldDefinition CreateField(string key);
+
+    IReadOnlyList<string> Validate(FormFieldDefinition fieldDefinition, string? value);
 }

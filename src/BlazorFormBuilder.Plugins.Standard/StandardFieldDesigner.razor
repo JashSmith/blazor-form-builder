@@ -1,0 +1,28 @@
+<label class="designer-field">
+    <span>@Field.Label @if (Field.IsRequired) { <strong aria-label="required">*</strong> }</span>
+    @switch (Field.Type)
+    {
+        case "textarea":
+            <textarea placeholder="@Field.Placeholder" disabled></textarea>
+            break;
+        case "checkbox":
+            <span class="checkbox-preview"><input type="checkbox" disabled /> @Field.Placeholder</span>
+            break;
+        default:
+            <input type="@InputType" placeholder="@Field.Placeholder" disabled />
+            break;
+    }
+</label>
+
+@code {
+    [Parameter, EditorRequired]
+    public required FormFieldDefinition Field { get; set; }
+
+    private string InputType => Field.Type switch
+    {
+        "email" => "email",
+        "number" => "number",
+        "date" => "date",
+        _ => "text"
+    };
+}

@@ -20,3 +20,9 @@ jobs:
       - run: dotnet restore BlazorFormBuilder.slnx
       - run: dotnet build BlazorFormBuilder.slnx --configuration Release --no-restore
       - run: dotnet test BlazorFormBuilder.slnx --configuration Release --no-build --collect:"XPlat Code Coverage"
+      - run: dotnet publish src/BlazorFormBuilder.App --configuration Release --no-restore
+      - uses: actions/upload-artifact@v4
+        with:
+          name: blazor-form-builder-${{ github.sha }}
+          path: src/BlazorFormBuilder.App/bin/Release/net10.0/publish/wwwroot
+          if-no-files-found: error

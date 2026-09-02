@@ -1,0 +1,7 @@
+.status-footer { color: #d0d5dd; background: #1d2939; font-size: .62rem; }
+.footer-main { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .7rem 1rem; }
+.footer-main nav { display: flex; gap: .7rem; }
+.status-widgets { display: flex; align-items: center; justify-content: flex-end; gap: .8rem; padding: .35rem .8rem; color: #98a2b3; background: #101828; }
+.status-widgets span { display: flex; align-items: center; gap: .3rem; white-space: nowrap; }
+.progress-widget i { display: block; width: 2.5rem; height: .3rem; overflow: hidden; background: #344054; border-radius: 99px; }.progress-widget b { display: block; width: 35%; height: 100%; background: #9e77ed; }
+.status-widgets em { width: .38rem; height: .38rem; background: #32d583; border-radius: 50%; }

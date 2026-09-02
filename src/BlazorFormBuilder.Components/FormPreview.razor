@@ -1,0 +1,81 @@
+@inject IEnumerable<IFormFieldPlugin> AvailablePlugins
+
+<section class="preview-card">
+    <div class="preview-heading">
+        <span class="eyebrow">LIVE FORM</span>
+        <h2>@Definition.Name</h2>
+        <p>Complete the fields below and submit to test runtime validation.</p>
+    </div>
+
+    @if (submittedSuccessfully)
+    {
+        <div class="success-message" role="status">
+            <strong>Submission accepted</strong>
+            <span>The form values passed all plugin validation rules.</span>
+        </div>
+    }
+
+    <div class="runtime-fields">
+        @foreach (var item in Definition.Fields.OrderBy(item => item.Order))
+        {
+            var plugin = PluginsByType[item.Type];
+            <div @key="item.Id" class="runtime-item">
+                <DynamicComponent Type="plugin.RuntimeComponentType" Parameters="RuntimeParameters(item)" />
+                @if (Errors.TryGetValue(item.Id, out var itemErrors))
+                {
+                    @foreach (var error in itemErrors)
+                    {
+                        <span class="field-error">@error</span>
+                    }
+                }
+            </div>
+        }
+    </div>
+
+    <button class="submit" @onclick="Submit">Submit test response</button>
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public required FormDefinition Definition { get; set; }
+
+    private readonly Dictionary<Guid, string?> Values = [];
+    private readonly Dictionary<Guid, IReadOnlyList<string>> Errors = [];
+    private IReadOnlyDictionary<string, IFormFieldPlugin> PluginsByType = new Dictionary<string, IFormFieldPlugin>();
+    private bool submittedSuccessfully;
+
+    protected override void OnInitialized() => PluginsByType = AvailablePlugins.ToDictionary(
+        plugin => plugin.Type,
+        StringComparer.OrdinalIgnoreCase);
+
+    private IDictionary<string, object> RuntimeParameters(FormFieldDefinition item)
+    {
+        Values.TryGetValue(item.Id, out var value);
+        var changed = EventCallback.Factory.Create<string?>(this, nextValue => SetValue(item.Id, nextValue));
+        return FormFieldComponentParameters.ForRuntime(item, value, changed);
+    }
+
+    private void SetValue(Guid fieldId, string? value)
+    {
+        Values[fieldId] = value;
+        Errors.Remove(fieldId);
+        submittedSuccessfully = false;
+    }
+
+    private void Submit()
+    {
+        Errors.Clear();
+
+        foreach (var item in Definition.Fields)
+        {
+            Values.TryGetValue(item.Id, out var value);
+            var itemErrors = PluginsByType[item.Type].Validate(item, value);
+            if (itemErrors.Count > 0)
+            {
+                Errors[item.Id] = itemErrors;
+            }
+        }
+
+        submittedSuccessfully = Errors.Count == 0;
+    }
+}

@@ -1,6 +1,6 @@
 namespace BlazorFormBuilder.Core.Models;
 
-public sealed class FormDefinition
+public sealed class BuilderWorkspaceDefinition
 {
     public int SchemaVersion { get; init; } = 1;
 
@@ -8,7 +8,9 @@ public sealed class FormDefinition
 
     public required string Name { get; set; }
 
+    public Guid? ActivePageId { get; set; }
+
     public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 
-    public List<FormFieldDefinition> Fields { get; init; } = [];
+    public List<PageDefinition> Pages { get; init; } = [];
 }

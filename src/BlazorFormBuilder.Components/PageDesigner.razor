@@ -1,0 +1,452 @@
+@inject IBuilderWorkspaceStore Store
+
+<div class="page-designer">
+    <header class="page-toolbar">
+        <div>
+            <span class="eyebrow">PAGE BUILDER</span>
+            <h1>@CurrentPage.Name</h1>
+        </div>
+        <div class="toolbar-actions">
+            @if (!string.IsNullOrWhiteSpace(statusMessage))
+            {
+                <span class="status @(saveSucceeded ? "success" : null)">@statusMessage</span>
+            }
+            <button data-testid="save-workspace" class="primary" @onclick="SaveAsync">Save workspace</button>
+        </div>
+    </header>
+
+    <div class="builder-grid">
+        <aside class="left-panel panel">
+            <section>
+                <div class="section-heading"><h2>Pages</h2><button data-testid="create-page" title="Create page" @onclick="AddPage">+</button></div>
+                <div class="page-list">
+                    @foreach (var pageItem in Workspace.Pages)
+                    {
+                        <button class="@(pageItem.Id == CurrentPage.Id ? "active" : null)" @onclick="() => SelectPage(pageItem.Id)">
+                            <strong>@pageItem.Name</strong><span>@($"/{pageItem.Slug}")</span>
+                        </button>
+                    }
+                </div>
+            </section>
+
+            <section>
+                <h2>Layout templates</h2>
+                <div class="template-grid">
+                    @foreach (var template in Enum.GetValues<LayoutTemplateKind>())
+                    {
+                        <button data-template="@template" @onclick="() => ApplyTemplate(template)">@TemplateIcon(template)<span>@template</span></button>
+                    }
+                </div>
+            </section>
+
+            <section>
+                <h2>Drag elements</h2>
+                <p class="hint">Drag onto the canvas or click to append.</p>
+                <div class="element-list">
+                    @foreach (var kind in Enum.GetValues<LayoutBoxKind>())
+                    {
+                        <button draggable="true"
+                                @ondragstart="() => BeginNewBoxDrag(kind)"
+                                @onclick="() => AddBox(kind)">
+                            <span class="drag-handle">⋮⋮</span> @BoxLabel(kind)
+                        </button>
+                    }
+                </div>
+            </section>
+        </aside>
+
+        <main class="canvas-column">
+            <div class="viewport-toolbar panel">
+                <div class="viewport-switcher">
+                    <button data-testid="viewport-desktop" class="@(viewport == PageViewport.Desktop ? "active" : null)" @onclick="() => SetViewport(PageViewport.Desktop)">▰ Desktop</button>
+                    <button data-testid="viewport-tablet" class="@(viewport == PageViewport.Tablet ? "active" : null)" @onclick="() => SetViewport(PageViewport.Tablet)">▭ Tablet</button>
+                    <button data-testid="viewport-mobile" class="@(viewport == PageViewport.Mobile ? "active" : null)" @onclick="() => SetViewport(PageViewport.Mobile)">▯ Mobile</button>
+                </div>
+                <span>@ViewportWidth · @CurrentColumnCount columns</span>
+            </div>
+
+            <div class="device-stage">
+                <div class="page-canvas @ViewportClass"
+                     @ondragover:preventDefault
+                     @ondrop="DropAtEnd">
+                    @if (CurrentPage.Header.IsVisible)
+                    {
+                        <header class="canvas-header">
+                            <strong>@CurrentPage.Header.BrandText</strong>
+                            <nav>
+                                @foreach (var item in CurrentPage.Header.MenuItems)
+                                {
+                                    <span>@item.Label</span>
+                                }
+                            </nav>
+                        </header>
+                    }
+
+                    <div class="canvas-grid" style="@CanvasGridStyle">
+                        @if (CurrentPage.Boxes.Count == 0)
+                        {
+                            <div class="canvas-empty" style="grid-column: 1 / -1">
+                                <strong>Drop layout elements here</strong>
+                                <span>Choose an element or apply a template.</span>
+                            </div>
+                        }
+                        else
+                        {
+                            @foreach (var box in CurrentPage.Boxes.OrderBy(box => box.Order))
+                            {
+                                <article @key="box.Id"
+                                         draggable="true"
+                                         class="layout-box @(selectedBoxId == box.Id ? "selected" : null)"
+                                         style="@BoxStyle(box)"
+                                         @onclick="() => SelectBox(box.Id)"
+                                         @ondragstart="() => BeginBoxDrag(box.Id)"
+                                         @ondragover:preventDefault
+                                         @ondrop="() => DropBefore(box.Id)"
+                                         @ondrop:stopPropagation>
+                                    <div class="box-heading"><span>@BoxIcon(box.Kind)</span><strong>@box.Title</strong></div>
+                                    <div class="box-content">@BoxDescription(box.Kind)</div>
+                                    <button class="remove-box" title="Remove box" @onclick="() => RemoveBox(box.Id)" @onclick:stopPropagation>×</button>
+                                    <span class="span-label">@CurrentSpan(box)/@CurrentColumnCount</span>
+                                </article>
+                            }
+                        }
+                    </div>
+
+                    @if (CurrentPage.Footer.IsVisible)
+                    {
+                        <StatusFooterPreview Definition="CurrentPage.Footer" />
+                    }
+                </div>
+            </div>
+        </main>
+
+        <aside class="right-panel panel">
+            <section>
+                <h2>Page settings</h2>
+                <label>Name<input @bind="CurrentPage.Name" @bind:event="oninput" @bind:after="MarkDirty" /></label>
+                <label>Slug<input @bind="CurrentPage.Slug" @bind:event="oninput" @bind:after="MarkDirty" /></label>
+            </section>
+
+            <details open>
+                <summary>Responsive grid</summary>
+                <div class="column-settings">
+                    <label>Desktop columns<input type="number" min="1" max="24" @bind="CurrentPage.Grid.DesktopColumns" @bind:after="GridChanged" /></label>
+                    <label>Tablet columns<input type="number" min="1" max="16" @bind="CurrentPage.Grid.TabletColumns" @bind:after="GridChanged" /></label>
+                    <label>Mobile columns<input type="number" min="1" max="8" @bind="CurrentPage.Grid.MobileColumns" @bind:after="GridChanged" /></label>
+                </div>
+            </details>
+
+            @{ var selectedBox = SelectedBox; }
+            @if (selectedBox is not null)
+            {
+                <details open>
+                    <summary>Selected box</summary>
+                    <label>Title<input @bind="selectedBox.Title" @bind:event="oninput" @bind:after="MarkDirty" /></label>
+                    <div class="column-settings">
+                        <label>Desktop span<input type="number" min="1" max="@CurrentPage.Grid.DesktopColumns" @bind="selectedBox.DesktopSpan" @bind:after="GridChanged" /></label>
+                        <label>Tablet span<input type="number" min="1" max="@CurrentPage.Grid.TabletColumns" @bind="selectedBox.TabletSpan" @bind:after="GridChanged" /></label>
+                        <label>Mobile span<input type="number" min="1" max="@CurrentPage.Grid.MobileColumns" @bind="selectedBox.MobileSpan" @bind:after="GridChanged" /></label>
+                    </div>
+                </details>
+            }
+
+            <details>
+                <summary>Header & menu</summary>
+                <label class="toggle"><input type="checkbox" @bind="CurrentPage.Header.IsVisible" @bind:after="MarkDirty" /> Show header</label>
+                <label>Brand<input @bind="CurrentPage.Header.BrandText" @bind:event="oninput" @bind:after="MarkDirty" /></label>
+                <div class="repeater">
+                    @foreach (var item in CurrentPage.Header.MenuItems)
+                    {
+                        <div @key="item.Id" class="repeater-row">
+                            <input aria-label="Menu label" @bind="item.Label" @bind:event="oninput" @bind:after="MarkDirty" />
+                            <input aria-label="Menu URL" @bind="item.Url" @bind:event="oninput" @bind:after="MarkDirty" />
+                            <button title="Remove menu item" @onclick="() => RemoveHeaderItem(item.Id)">×</button>
+                        </div>
+                    }
+                    <button class="add-row" @onclick="AddHeaderItem">+ Menu item</button>
+                </div>
+            </details>
+
+            <details>
+                <summary>Footer & status bar</summary>
+                <label class="toggle"><input type="checkbox" @bind="CurrentPage.Footer.IsVisible" @bind:after="MarkDirty" /> Show footer</label>
+                <label>Footer text<input @bind="CurrentPage.Footer.CopyrightText" @bind:event="oninput" @bind:after="MarkDirty" /></label>
+                <h3>Status widgets</h3>
+                <div class="widget-list">
+                    @foreach (var widget in Enum.GetValues<FooterWidgetKind>())
+                    {
+                        <label class="toggle">
+                            <input type="checkbox" checked="@CurrentPage.Footer.Widgets.Contains(widget)" @onchange="args => ToggleWidget(widget, args)" /> @widget
+                        </label>
+                    }
+                </div>
+                <h3>Footer links</h3>
+                <div class="repeater">
+                    @foreach (var item in CurrentPage.Footer.Links)
+                    {
+                        <div @key="item.Id" class="repeater-row">
+                            <input aria-label="Footer link label" @bind="item.Label" @bind:event="oninput" @bind:after="MarkDirty" />
+                            <input aria-label="Footer link URL" @bind="item.Url" @bind:event="oninput" @bind:after="MarkDirty" />
+                            <button title="Remove footer link" @onclick="() => RemoveFooterLink(item.Id)">×</button>
+                        </div>
+                    }
+                    <button class="add-row" @onclick="AddFooterLink">+ Footer link</button>
+                </div>
+            </details>
+        </aside>
+    </div>
+</div>
+
+@code {
+    private BuilderWorkspaceDefinition Workspace = PageBuilderService.CreateWorkspace("My application");
+    private PageViewport viewport = PageViewport.Desktop;
+    private Guid? selectedBoxId;
+    private Guid? draggedBoxId;
+    private LayoutBoxKind? draggedBoxKind;
+    private string? statusMessage;
+    private bool saveSucceeded;
+
+    private PageDefinition CurrentPage => Workspace.Pages.FirstOrDefault(page => page.Id == Workspace.ActivePageId)
+        ?? Workspace.Pages[0];
+
+    private LayoutBoxDefinition? SelectedBox => CurrentPage.Boxes.FirstOrDefault(box => box.Id == selectedBoxId);
+
+    private int CurrentColumnCount => viewport switch
+    {
+        PageViewport.Tablet => CurrentPage.Grid.TabletColumns,
+        PageViewport.Mobile => CurrentPage.Grid.MobileColumns,
+        _ => CurrentPage.Grid.DesktopColumns
+    };
+
+    private string ViewportClass => viewport.ToString().ToLowerInvariant();
+
+    private string ViewportWidth => viewport switch
+    {
+        PageViewport.Tablet => "768px",
+        PageViewport.Mobile => "390px",
+        _ => "100%"
+    };
+
+    private string CanvasGridStyle => $"grid-template-columns: repeat({CurrentColumnCount}, minmax(0, 1fr));";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            Workspace = await Store.LoadAsync() ?? Workspace;
+            if (Workspace.Pages.Count == 0)
+            {
+                PageBuilderService.AddPage(Workspace, "Home");
+            }
+        }
+        catch (Exception exception) when (exception is JSException or System.Text.Json.JsonException)
+        {
+            statusMessage = "Local draft unavailable; using a new workspace";
+        }
+    }
+
+    private void AddPage()
+    {
+        var page = PageBuilderService.AddPage(Workspace, $"Page {Workspace.Pages.Count + 1}");
+        selectedBoxId = null;
+        PageBuilderService.ApplyTemplate(page, LayoutTemplateKind.Blank);
+        MarkDirty();
+    }
+
+    private void SelectPage(Guid pageId)
+    {
+        Workspace.ActivePageId = pageId;
+        selectedBoxId = null;
+    }
+
+    private void ApplyTemplate(LayoutTemplateKind template)
+    {
+        PageBuilderService.ApplyTemplate(CurrentPage, template);
+        selectedBoxId = CurrentPage.Boxes.FirstOrDefault()?.Id;
+        MarkDirty();
+    }
+
+    private void AddBox(LayoutBoxKind kind)
+    {
+        var box = PageBuilderService.AddBox(CurrentPage, kind);
+        selectedBoxId = box.Id;
+        MarkDirty();
+    }
+
+    private void BeginNewBoxDrag(LayoutBoxKind kind)
+    {
+        draggedBoxKind = kind;
+        draggedBoxId = null;
+    }
+
+    private void BeginBoxDrag(Guid boxId)
+    {
+        draggedBoxId = boxId;
+        draggedBoxKind = null;
+    }
+
+    private void DropBefore(Guid targetBoxId)
+    {
+        var index = CurrentPage.Boxes.FindIndex(box => box.Id == targetBoxId);
+        DropAt(index);
+    }
+
+    private void DropAtEnd() => DropAt(CurrentPage.Boxes.Count);
+
+    private void DropAt(int index)
+    {
+        if (draggedBoxKind is { } kind)
+        {
+            var box = PageBuilderService.AddBox(CurrentPage, kind, index);
+            selectedBoxId = box.Id;
+        }
+        else if (draggedBoxId is { } boxId)
+        {
+            PageBuilderService.MoveBox(CurrentPage, boxId, index);
+            selectedBoxId = boxId;
+        }
+
+        draggedBoxKind = null;
+        draggedBoxId = null;
+        MarkDirty();
+    }
+
+    private void SelectBox(Guid boxId) => selectedBoxId = boxId;
+
+    private void RemoveBox(Guid boxId)
+    {
+        PageBuilderService.RemoveBox(CurrentPage, boxId);
+        if (selectedBoxId == boxId)
+        {
+            selectedBoxId = null;
+        }
+
+        MarkDirty();
+    }
+
+    private void SetViewport(PageViewport nextViewport) => viewport = nextViewport;
+
+    private void GridChanged()
+    {
+        PageBuilderService.ClampGrid(CurrentPage);
+        MarkDirty();
+    }
+
+    private void AddHeaderItem()
+    {
+        CurrentPage.Header.MenuItems.Add(new()
+        {
+            Id = Guid.NewGuid(),
+            Label = "Menu item",
+            Url = "/page"
+        });
+        MarkDirty();
+    }
+
+    private void RemoveHeaderItem(Guid itemId)
+    {
+        CurrentPage.Header.MenuItems.RemoveAll(item => item.Id == itemId);
+        MarkDirty();
+    }
+
+    private void AddFooterLink()
+    {
+        CurrentPage.Footer.Links.Add(new()
+        {
+            Id = Guid.NewGuid(),
+            Label = "Footer link",
+            Url = "/"
+        });
+        MarkDirty();
+    }
+
+    private void RemoveFooterLink(Guid itemId)
+    {
+        CurrentPage.Footer.Links.RemoveAll(item => item.Id == itemId);
+        MarkDirty();
+    }
+
+    private void ToggleWidget(FooterWidgetKind widget, ChangeEventArgs args)
+    {
+        if (args.Value is true)
+        {
+            CurrentPage.Footer.Widgets.Add(widget);
+        }
+        else
+        {
+            CurrentPage.Footer.Widgets.Remove(widget);
+        }
+
+        MarkDirty();
+    }
+
+    private async Task SaveAsync()
+    {
+        PageBuilderService.ClampGrid(CurrentPage);
+        PageBuilderService.Touch(Workspace);
+        try
+        {
+            await Store.SaveAsync(Workspace);
+            statusMessage = "Workspace saved locally";
+            saveSucceeded = true;
+        }
+        catch (JSException)
+        {
+            statusMessage = "Browser storage is unavailable";
+            saveSucceeded = false;
+        }
+    }
+
+    private void MarkDirty()
+    {
+        statusMessage = "Unsaved changes";
+        saveSucceeded = false;
+    }
+
+    private int CurrentSpan(LayoutBoxDefinition box) => viewport switch
+    {
+        PageViewport.Tablet => box.TabletSpan,
+        PageViewport.Mobile => box.MobileSpan,
+        _ => box.DesktopSpan
+    };
+
+    private string BoxStyle(LayoutBoxDefinition box) => $"grid-column: span {CurrentSpan(box)};";
+
+    private static string TemplateIcon(LayoutTemplateKind template) => template switch
+    {
+        LayoutTemplateKind.Landing => "▤",
+        LayoutTemplateKind.Dashboard => "▦",
+        LayoutTemplateKind.Sidebar => "▥",
+        _ => "□"
+    };
+
+    private static string BoxIcon(LayoutBoxKind kind) => kind switch
+    {
+        LayoutBoxKind.Hero => "◆",
+        LayoutBoxKind.Form => "☷",
+        LayoutBoxKind.Sidebar => "▥",
+        LayoutBoxKind.Cards => "▦",
+        LayoutBoxKind.Empty => "□",
+        _ => "▤"
+    };
+
+    private static string BoxLabel(LayoutBoxKind kind) => kind switch
+    {
+        LayoutBoxKind.Hero => "Hero",
+        LayoutBoxKind.Form => "Form container",
+        LayoutBoxKind.Sidebar => "Sidebar",
+        LayoutBoxKind.Cards => "Card grid",
+        LayoutBoxKind.Empty => "Empty box",
+        _ => "Content"
+    };
+
+    private static string BoxDescription(LayoutBoxKind kind) => kind switch
+    {
+        LayoutBoxKind.Hero => "Headline, supporting text and primary action",
+        LayoutBoxKind.Form => "Drop or connect a form to this region",
+        LayoutBoxKind.Sidebar => "Secondary navigation and contextual tools",
+        LayoutBoxKind.Cards => "Responsive cards for summaries or actions",
+        LayoutBoxKind.Empty => "Flexible container for future components",
+        _ => "Rich content, media or custom components"
+    };
+}
