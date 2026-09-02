@@ -23,7 +23,7 @@
                     @foreach (var page in Workspace.Pages)
                     {
                         <button class="@(page.Id == CurrentPage.Id ? "active" : null)" @onclick="() => SelectPage(page.Id)">
-                            <strong>@page.Name</strong><span>/@page.Slug</span>
+                            <strong>@page.Name</strong><span>@($"/{page.Slug}")</span>
                         </button>
                     }
                 </div>
