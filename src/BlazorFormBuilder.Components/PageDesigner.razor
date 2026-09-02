@@ -20,10 +20,10 @@
             <section>
                 <div class="section-heading"><h2>Pages</h2><button title="Create page" @onclick="AddPage">+</button></div>
                 <div class="page-list">
-                    @foreach (var page in Workspace.Pages)
+                    @foreach (var pageItem in Workspace.Pages)
                     {
-                        <button class="@(page.Id == CurrentPage.Id ? "active" : null)" @onclick="() => SelectPage(page.Id)">
-                            <strong>@page.Name</strong><span>@($"/{page.Slug}")</span>
+                        <button class="@(pageItem.Id == CurrentPage.Id ? "active" : null)" @onclick="() => SelectPage(pageItem.Id)">
+                            <strong>@pageItem.Name</strong><span>@($"/{pageItem.Slug}")</span>
                         </button>
                     }
                 </div>
