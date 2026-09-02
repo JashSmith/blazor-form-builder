@@ -11,14 +11,14 @@
             {
                 <span class="status @(saveSucceeded ? "success" : null)">@statusMessage</span>
             }
-            <button class="primary" @onclick="SaveAsync">Save workspace</button>
+            <button data-testid="save-workspace" class="primary" @onclick="SaveAsync">Save workspace</button>
         </div>
     </header>
 
     <div class="builder-grid">
         <aside class="left-panel panel">
             <section>
-                <div class="section-heading"><h2>Pages</h2><button title="Create page" @onclick="AddPage">+</button></div>
+                <div class="section-heading"><h2>Pages</h2><button data-testid="create-page" title="Create page" @onclick="AddPage">+</button></div>
                 <div class="page-list">
                     @foreach (var pageItem in Workspace.Pages)
                     {
@@ -34,7 +34,7 @@
                 <div class="template-grid">
                     @foreach (var template in Enum.GetValues<LayoutTemplateKind>())
                     {
-                        <button @onclick="() => ApplyTemplate(template)">@TemplateIcon(template)<span>@template</span></button>
+                        <button data-template="@template" @onclick="() => ApplyTemplate(template)">@TemplateIcon(template)<span>@template</span></button>
                     }
                 </div>
             </section>
@@ -58,9 +58,9 @@
         <main class="canvas-column">
             <div class="viewport-toolbar panel">
                 <div class="viewport-switcher">
-                    <button class="@(viewport == PageViewport.Desktop ? "active" : null)" @onclick="() => SetViewport(PageViewport.Desktop)">▰ Desktop</button>
-                    <button class="@(viewport == PageViewport.Tablet ? "active" : null)" @onclick="() => SetViewport(PageViewport.Tablet)">▭ Tablet</button>
-                    <button class="@(viewport == PageViewport.Mobile ? "active" : null)" @onclick="() => SetViewport(PageViewport.Mobile)">▯ Mobile</button>
+                    <button data-testid="viewport-desktop" class="@(viewport == PageViewport.Desktop ? "active" : null)" @onclick="() => SetViewport(PageViewport.Desktop)">▰ Desktop</button>
+                    <button data-testid="viewport-tablet" class="@(viewport == PageViewport.Tablet ? "active" : null)" @onclick="() => SetViewport(PageViewport.Tablet)">▭ Tablet</button>
+                    <button data-testid="viewport-mobile" class="@(viewport == PageViewport.Mobile ? "active" : null)" @onclick="() => SetViewport(PageViewport.Mobile)">▯ Mobile</button>
                 </div>
                 <span>@ViewportWidth · @CurrentColumnCount columns</span>
             </div>

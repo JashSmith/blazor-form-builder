@@ -6,10 +6,10 @@
         </div>
 
         <nav aria-label="Builder sections">
-            <button class="@(activeTool == BuilderTool.Pages ? "active" : null)" @onclick="() => SelectTool(BuilderTool.Pages)">
+            <button data-testid="open-page-builder" class="@(activeTool == BuilderTool.Pages ? "active" : null)" @onclick="() => SelectTool(BuilderTool.Pages)">
                 <span>▦</span> Page builder
             </button>
-            <button class="@(activeTool == BuilderTool.Forms ? "active" : null)" @onclick="() => SelectTool(BuilderTool.Forms)">
+            <button data-testid="open-form-builder" class="@(activeTool == BuilderTool.Forms ? "active" : null)" @onclick="() => SelectTool(BuilderTool.Forms)">
                 <span>☷</span> Form builder
             </button>
         </nav>
