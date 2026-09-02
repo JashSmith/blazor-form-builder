@@ -9,6 +9,12 @@
             <button data-testid="open-page-builder" class="@(activeTool == BuilderTool.Pages ? "active" : null)" @onclick="() => SelectTool(BuilderTool.Pages)">
                 <span>▦</span> Page builder
             </button>
+            <button data-testid="open-header-builder" class="@(activeTool == BuilderTool.Headers ? "active" : null)" @onclick="() => SelectTool(BuilderTool.Headers)">
+                <span>▤</span> Header & menu
+            </button>
+            <button data-testid="open-footer-builder" class="@(activeTool == BuilderTool.Footers ? "active" : null)" @onclick="() => SelectTool(BuilderTool.Footers)">
+                <span>▁</span> Footer builder
+            </button>
             <button data-testid="open-form-builder" class="@(activeTool == BuilderTool.Forms ? "active" : null)" @onclick="() => SelectTool(BuilderTool.Forms)">
                 <span>☷</span> Form builder
             </button>
@@ -25,6 +31,14 @@
         {
             <PageDesigner />
         }
+        else if (activeTool == BuilderTool.Headers)
+        {
+            <ChromeDesigner Kind="ChromeBuilderKind.Header" />
+        }
+        else if (activeTool == BuilderTool.Footers)
+        {
+            <ChromeDesigner Kind="ChromeBuilderKind.Footer" />
+        }
         else
         {
             <FormDesigner />
@@ -40,6 +54,8 @@
     private enum BuilderTool
     {
         Pages,
+        Headers,
+        Footers,
         Forms
     }
 }

@@ -62,21 +62,29 @@
                     <button data-testid="viewport-tablet" class="@(viewport == PageViewport.Tablet ? "active" : null)" @onclick="() => SetViewport(PageViewport.Tablet)">▭ Tablet</button>
                     <button data-testid="viewport-mobile" class="@(viewport == PageViewport.Mobile ? "active" : null)" @onclick="() => SetViewport(PageViewport.Mobile)">▯ Mobile</button>
                 </div>
-                <span>@ViewportWidth · @CurrentColumnCount columns</span>
+                <div class="preview-meta">
+                    <select aria-label="Page preview language" value="@previewLanguageCode" @onchange="ChangePreviewLanguage">
+                        @foreach (var language in PageLanguages)
+                        {
+                            <option value="@language.Code">@language.DisplayName</option>
+                        }
+                    </select>
+                    <span>@ViewportWidth · @CurrentColumnCount columns · @CurrentDirection.ToUpperInvariant()</span>
+                </div>
             </div>
 
             <div class="device-stage">
-                <div class="page-canvas @ViewportClass"
+                <div class="page-canvas @ViewportClass" dir="@CurrentDirection"
                      @ondragover:preventDefault
                      @ondrop="DropAtEnd">
-                    @if (CurrentPage.Header.IsVisible)
+                    @if (CurrentHeader is { IsVisible: true } header)
                     {
                         <header class="canvas-header">
-                            <strong>@CurrentPage.Header.BrandText</strong>
+                            <strong>@header.Brand.Resolve(previewLanguageCode, header.BrandText)</strong>
                             <nav>
-                                @foreach (var item in CurrentPage.Header.MenuItems)
+                                @foreach (var item in header.MenuItems)
                                 {
-                                    <span>@item.Label</span>
+                                    <span>@item.LabelResource.Resolve(previewLanguageCode, item.Label)</span>
                                 }
                             </nav>
                         </header>
@@ -103,7 +111,7 @@
                                          @ondragover:preventDefault
                                          @ondrop="() => DropBefore(box.Id)"
                                          @ondrop:stopPropagation>
-                                    <div class="box-heading"><span>@BoxIcon(box.Kind)</span><strong>@box.Title</strong></div>
+                                    <div class="box-heading"><span>@BoxIcon(box.Kind)</span><strong>@box.TitleResource.Resolve(previewLanguageCode, box.Title)</strong></div>
                                     <div class="box-content">@BoxDescription(box.Kind)</div>
                                     <button class="remove-box" title="Remove box" @onclick="() => RemoveBox(box.Id)" @onclick:stopPropagation>×</button>
                                     <span class="span-label">@CurrentSpan(box)/@CurrentColumnCount</span>
@@ -112,9 +120,9 @@
                         }
                     </div>
 
-                    @if (CurrentPage.Footer.IsVisible)
+                    @if (CurrentFooter is { IsVisible: true } footer)
                     {
-                        <StatusFooterPreview Definition="CurrentPage.Footer" />
+                        <StatusFooterPreview Definition="footer" LanguageCode="previewLanguageCode" Direction="CurrentDirection" />
                     }
                 </div>
             </div>
@@ -125,7 +133,42 @@
                 <h2>Page settings</h2>
                 <label>Name<input @bind="CurrentPage.Name" @bind:event="oninput" @bind:after="MarkDirty" /></label>
                 <label>Slug<input @bind="CurrentPage.Slug" @bind:event="oninput" @bind:after="MarkDirty" /></label>
+                <label>Header
+                    <select value="@CurrentPage.HeaderId" @onchange="AssignHeader">
+                        <option value="">No header</option>
+                        @foreach (var header in Workspace.Headers)
+                        {
+                            <option value="@header.Id">@header.Name</option>
+                        }
+                    </select>
+                </label>
+                <label>Footer
+                    <select value="@CurrentPage.FooterId" @onchange="AssignFooter">
+                        <option value="">No footer</option>
+                        @foreach (var footer in Workspace.Footers)
+                        {
+                            <option value="@footer.Id">@footer.Name</option>
+                        }
+                    </select>
+                </label>
             </section>
+
+            <details open>
+                <summary>Languages & direction</summary>
+                <p class="hint">Select the languages published for this page. Direction comes from each language.</p>
+                <LanguageSelector Languages="Workspace.Localization.Languages" LanguageCodes="CurrentPage.LanguageCodes"
+                                  DefaultLanguageCode="Workspace.Localization.DefaultLanguageCode" Changed="LanguagesChanged" TestId="page-languages" />
+                <h3>Page title translations</h3>
+                <LocalizedTextEditor Definition="CurrentPage.Title" Languages="Workspace.Localization.Languages"
+                                     LanguageCodes="CurrentPage.LanguageCodes" Changed="MarkDirty" />
+                <h3>Workspace language catalog</h3>
+                <div class="language-add">
+                    <input aria-label="Language code" placeholder="ar" @bind="newLanguageCode" />
+                    <input aria-label="Language name" placeholder="العربية" @bind="newLanguageName" />
+                    <label class="toggle"><input type="checkbox" @bind="newLanguageIsRtl" /> RTL</label>
+                    <button data-testid="add-language" class="add-row" @onclick="AddLanguage">Add language</button>
+                </div>
+            </details>
 
             <details open>
                 <summary>Responsive grid</summary>
@@ -142,6 +185,8 @@
                 <details open>
                     <summary>Selected box</summary>
                     <label>Title<input @bind="selectedBox.Title" @bind:event="oninput" @bind:after="MarkDirty" /></label>
+                    <LocalizedTextEditor Definition="selectedBox.TitleResource" Languages="Workspace.Localization.Languages"
+                                         LanguageCodes="CurrentPage.LanguageCodes" Changed="MarkDirty" />
                     <div class="column-settings">
                         <label>Desktop span<input type="number" min="1" max="@CurrentPage.Grid.DesktopColumns" @bind="selectedBox.DesktopSpan" @bind:after="GridChanged" /></label>
                         <label>Tablet span<input type="number" min="1" max="@CurrentPage.Grid.TabletColumns" @bind="selectedBox.TabletSpan" @bind:after="GridChanged" /></label>
@@ -150,49 +195,6 @@
                 </details>
             }
 
-            <details>
-                <summary>Header & menu</summary>
-                <label class="toggle"><input type="checkbox" @bind="CurrentPage.Header.IsVisible" @bind:after="MarkDirty" /> Show header</label>
-                <label>Brand<input @bind="CurrentPage.Header.BrandText" @bind:event="oninput" @bind:after="MarkDirty" /></label>
-                <div class="repeater">
-                    @foreach (var item in CurrentPage.Header.MenuItems)
-                    {
-                        <div @key="item.Id" class="repeater-row">
-                            <input aria-label="Menu label" @bind="item.Label" @bind:event="oninput" @bind:after="MarkDirty" />
-                            <input aria-label="Menu URL" @bind="item.Url" @bind:event="oninput" @bind:after="MarkDirty" />
-                            <button title="Remove menu item" @onclick="() => RemoveHeaderItem(item.Id)">×</button>
-                        </div>
-                    }
-                    <button class="add-row" @onclick="AddHeaderItem">+ Menu item</button>
-                </div>
-            </details>
-
-            <details>
-                <summary>Footer & status bar</summary>
-                <label class="toggle"><input type="checkbox" @bind="CurrentPage.Footer.IsVisible" @bind:after="MarkDirty" /> Show footer</label>
-                <label>Footer text<input @bind="CurrentPage.Footer.CopyrightText" @bind:event="oninput" @bind:after="MarkDirty" /></label>
-                <h3>Status widgets</h3>
-                <div class="widget-list">
-                    @foreach (var widget in Enum.GetValues<FooterWidgetKind>())
-                    {
-                        <label class="toggle">
-                            <input type="checkbox" checked="@CurrentPage.Footer.Widgets.Contains(widget)" @onchange="args => ToggleWidget(widget, args)" /> @widget
-                        </label>
-                    }
-                </div>
-                <h3>Footer links</h3>
-                <div class="repeater">
-                    @foreach (var item in CurrentPage.Footer.Links)
-                    {
-                        <div @key="item.Id" class="repeater-row">
-                            <input aria-label="Footer link label" @bind="item.Label" @bind:event="oninput" @bind:after="MarkDirty" />
-                            <input aria-label="Footer link URL" @bind="item.Url" @bind:event="oninput" @bind:after="MarkDirty" />
-                            <button title="Remove footer link" @onclick="() => RemoveFooterLink(item.Id)">×</button>
-                        </div>
-                    }
-                    <button class="add-row" @onclick="AddFooterLink">+ Footer link</button>
-                </div>
-            </details>
         </aside>
     </div>
 </div>
@@ -205,9 +207,23 @@
     private LayoutBoxKind? draggedBoxKind;
     private string? statusMessage;
     private bool saveSucceeded;
+    private string previewLanguageCode = "en";
+    private string newLanguageCode = string.Empty;
+    private string newLanguageName = string.Empty;
+    private bool newLanguageIsRtl;
 
     private PageDefinition CurrentPage => Workspace.Pages.FirstOrDefault(page => page.Id == Workspace.ActivePageId)
         ?? Workspace.Pages[0];
+
+    private HeaderDefinition? CurrentHeader => Workspace.Headers.FirstOrDefault(item => item.Id == CurrentPage.HeaderId);
+
+    private FooterDefinition? CurrentFooter => Workspace.Footers.FirstOrDefault(item => item.Id == CurrentPage.FooterId);
+
+    private IReadOnlyList<LanguageDefinition> PageLanguages => Workspace.Localization.Languages
+        .Where(language => CurrentPage.LanguageCodes.Contains(language.Code, StringComparer.OrdinalIgnoreCase)).ToArray();
+
+    private string CurrentDirection => Workspace.Localization.Languages.FirstOrDefault(language =>
+        string.Equals(language.Code, previewLanguageCode, StringComparison.OrdinalIgnoreCase))?.Direction == ContentDirection.RightToLeft ? "rtl" : "ltr";
 
     private LayoutBoxDefinition? SelectedBox => CurrentPage.Boxes.FirstOrDefault(box => box.Id == selectedBoxId);
 
@@ -234,10 +250,12 @@
         try
         {
             Workspace = await Store.LoadAsync() ?? Workspace;
+            PageBuilderService.NormalizeWorkspace(Workspace);
             if (Workspace.Pages.Count == 0)
             {
                 PageBuilderService.AddPage(Workspace, "Home");
             }
+            ResetPreviewLanguage();
         }
         catch (Exception exception) when (exception is JSException or System.Text.Json.JsonException)
         {
@@ -250,6 +268,7 @@
         var page = PageBuilderService.AddPage(Workspace, $"Page {Workspace.Pages.Count + 1}");
         selectedBoxId = null;
         PageBuilderService.ApplyTemplate(page, LayoutTemplateKind.Blank);
+        ResetPreviewLanguage();
         MarkDirty();
     }
 
@@ -257,6 +276,7 @@
     {
         Workspace.ActivePageId = pageId;
         selectedBoxId = null;
+        ResetPreviewLanguage();
     }
 
     private void ApplyTemplate(LayoutTemplateKind template)
@@ -326,57 +346,61 @@
 
     private void SetViewport(PageViewport nextViewport) => viewport = nextViewport;
 
+    private void ChangePreviewLanguage(ChangeEventArgs args) =>
+        previewLanguageCode = args.Value?.ToString() ?? Workspace.Localization.DefaultLanguageCode;
+
+    private void LanguagesChanged()
+    {
+        ResetPreviewLanguage();
+        MarkDirty();
+    }
+
+    private void ResetPreviewLanguage()
+    {
+        previewLanguageCode = CurrentPage.LanguageCodes.Contains(Workspace.Localization.DefaultLanguageCode, StringComparer.OrdinalIgnoreCase)
+            ? Workspace.Localization.DefaultLanguageCode
+            : CurrentPage.LanguageCodes.FirstOrDefault() ?? Workspace.Localization.DefaultLanguageCode;
+    }
+
+    private void AssignHeader(ChangeEventArgs args)
+    {
+        CurrentPage.HeaderId = Guid.TryParse(args.Value?.ToString(), out var id) ? id : null;
+        MarkDirty();
+    }
+
+    private void AssignFooter(ChangeEventArgs args)
+    {
+        CurrentPage.FooterId = Guid.TryParse(args.Value?.ToString(), out var id) ? id : null;
+        MarkDirty();
+    }
+
+    private void AddLanguage()
+    {
+        var code = newLanguageCode.Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(code) || Workspace.Localization.Languages.Any(language =>
+            string.Equals(language.Code, code, StringComparison.OrdinalIgnoreCase)))
+        {
+            statusMessage = "Enter a unique language code";
+            saveSucceeded = false;
+            return;
+        }
+
+        Workspace.Localization.Languages.Add(new()
+        {
+            Code = code,
+            DisplayName = string.IsNullOrWhiteSpace(newLanguageName) ? code.ToUpperInvariant() : newLanguageName.Trim(),
+            Direction = newLanguageIsRtl ? ContentDirection.RightToLeft : ContentDirection.LeftToRight
+        });
+        PageBuilderService.ToggleLanguage(CurrentPage.LanguageCodes, code, true, Workspace.Localization.DefaultLanguageCode);
+        newLanguageCode = string.Empty;
+        newLanguageName = string.Empty;
+        newLanguageIsRtl = false;
+        MarkDirty();
+    }
+
     private void GridChanged()
     {
         PageBuilderService.ClampGrid(CurrentPage);
-        MarkDirty();
-    }
-
-    private void AddHeaderItem()
-    {
-        CurrentPage.Header.MenuItems.Add(new()
-        {
-            Id = Guid.NewGuid(),
-            Label = "Menu item",
-            Url = "/page"
-        });
-        MarkDirty();
-    }
-
-    private void RemoveHeaderItem(Guid itemId)
-    {
-        CurrentPage.Header.MenuItems.RemoveAll(item => item.Id == itemId);
-        MarkDirty();
-    }
-
-    private void AddFooterLink()
-    {
-        CurrentPage.Footer.Links.Add(new()
-        {
-            Id = Guid.NewGuid(),
-            Label = "Footer link",
-            Url = "/"
-        });
-        MarkDirty();
-    }
-
-    private void RemoveFooterLink(Guid itemId)
-    {
-        CurrentPage.Footer.Links.RemoveAll(item => item.Id == itemId);
-        MarkDirty();
-    }
-
-    private void ToggleWidget(FooterWidgetKind widget, ChangeEventArgs args)
-    {
-        if (args.Value is true)
-        {
-            CurrentPage.Footer.Widgets.Add(widget);
-        }
-        else
-        {
-            CurrentPage.Footer.Widgets.Remove(widget);
-        }
-
         MarkDirty();
     }
 

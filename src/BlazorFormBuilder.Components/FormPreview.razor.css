@@ -1,6 +1,7 @@
 .preview-card { max-width: 720px; margin: 0 auto; padding: 2rem; background: #fff; border: 1px solid #e4e7ec; border-radius: 14px; box-shadow: 0 12px 32px rgb(16 24 40 / 8%); }
 .preview-heading { padding-bottom: 1.25rem; border-bottom: 1px solid #eaecf0; }
 .preview-heading h2 { margin: .3rem 0; font-size: 1.5rem; }
+.preview-title-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }.preview-title-row select { padding: .45rem; border: 1px solid #d0d5dd; border-radius: 6px; }
 .preview-heading p { margin: 0; color: #667085; }
 .eyebrow { color: #6941c6; font-size: .72rem; font-weight: 700; letter-spacing: .08em; }
 .runtime-fields { display: grid; gap: 1.1rem; margin-top: 1.25rem; }

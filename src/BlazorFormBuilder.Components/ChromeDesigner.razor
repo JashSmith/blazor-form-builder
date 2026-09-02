@@ -1,0 +1,220 @@
+@inject IBuilderWorkspaceStore Store
+
+<div class="chrome-designer">
+    <header class="chrome-toolbar">
+        <div>
+            <span class="eyebrow">@(Kind == ChromeBuilderKind.Header ? "HEADER & MENU LIBRARY" : "FOOTER LIBRARY")</span>
+            <h1>@CurrentName</h1>
+        </div>
+        <div class="toolbar-actions">
+            @if (!string.IsNullOrWhiteSpace(statusMessage))
+            {
+                <span class="status @(saveSucceeded ? "success" : null)">@statusMessage</span>
+            }
+            <button data-testid="save-chrome" class="primary" @onclick="SaveAsync">Save workspace</button>
+        </div>
+    </header>
+
+    <div class="chrome-grid">
+        <aside class="panel library-panel">
+            <div class="section-heading">
+                <h2>@(Kind == ChromeBuilderKind.Header ? "Headers" : "Footers")</h2>
+                <button data-testid="create-chrome" title="Create" @onclick="AddDefinition">+</button>
+            </div>
+            <div class="definition-list">
+                @if (Kind == ChromeBuilderKind.Header)
+                {
+                    @foreach (var item in Workspace.Headers)
+                    {
+                        <button class="@(item.Id == selectedId ? "active" : null)" @onclick="() => Select(item.Id)">@item.Name</button>
+                    }
+                }
+                else
+                {
+                    @foreach (var item in Workspace.Footers)
+                    {
+                        <button class="@(item.Id == selectedId ? "active" : null)" @onclick="() => Select(item.Id)">@item.Name</button>
+                    }
+                }
+            </div>
+            <p class="hint">Create reusable variants and assign any variant from Page builder.</p>
+        </aside>
+
+        <main class="panel preview-panel">
+            <div class="preview-controls">
+                <strong>Live preview</strong>
+                <select aria-label="Preview language" value="@previewLanguageCode" @onchange="ChangePreviewLanguage">
+                    @foreach (var language in CurrentLanguages)
+                    {
+                        <option value="@language.Code">@language.DisplayName</option>
+                    }
+                </select>
+            </div>
+            <div class="chrome-preview" dir="@PreviewDirection" data-testid="chrome-preview">
+                @if (Kind == ChromeBuilderKind.Header && CurrentHeader is { } header)
+                {
+                    <header class="header-preview">
+                        <strong>@header.Brand.Resolve(previewLanguageCode, header.BrandText)</strong>
+                        <nav>
+                            @foreach (var item in header.MenuItems)
+                            {
+                                <span>@item.LabelResource.Resolve(previewLanguageCode, item.Label)</span>
+                            }
+                        </nav>
+                    </header>
+                }
+                else if (CurrentFooter is { } footer)
+                {
+                    <StatusFooterPreview Definition="footer" LanguageCode="previewLanguageCode" Direction="PreviewDirection" />
+                }
+            </div>
+        </main>
+
+        <aside class="panel settings-panel">
+            @if (Kind == ChromeBuilderKind.Header && CurrentHeader is { } header)
+            {
+                <h2>Header settings</h2>
+                <label>Name<input @bind="header.Name" @bind:event="oninput" @bind:after="MarkDirty" /></label>
+                <label class="toggle"><input type="checkbox" @bind="header.IsVisible" @bind:after="MarkDirty" /> Visible</label>
+                <h3>Languages</h3>
+                <LanguageSelector Languages="Workspace.Localization.Languages" LanguageCodes="header.LanguageCodes"
+                                  DefaultLanguageCode="Workspace.Localization.DefaultLanguageCode" Changed="MarkDirty" TestId="header-languages" />
+                <h3>Brand translations</h3>
+                <LocalizedTextEditor Definition="header.Brand" Languages="Workspace.Localization.Languages"
+                                     LanguageCodes="header.LanguageCodes" Changed="MarkDirty" />
+                <h3>Menu items</h3>
+                @foreach (var item in header.MenuItems)
+                {
+                    <div @key="item.Id" class="item-editor">
+                        <label>URL<input @bind="item.Url" @bind:event="oninput" @bind:after="MarkDirty" /></label>
+                        <LocalizedTextEditor Definition="item.LabelResource" Languages="Workspace.Localization.Languages"
+                                             LanguageCodes="header.LanguageCodes" Changed="MarkDirty" />
+                        <button class="danger" @onclick="() => RemoveHeaderItem(item.Id)">Remove item</button>
+                    </div>
+                }
+                <button data-testid="add-menu-item" class="add-row" @onclick="AddHeaderItem">+ Menu item</button>
+            }
+            else if (CurrentFooter is { } footer)
+            {
+                <h2>Footer settings</h2>
+                <label>Name<input @bind="footer.Name" @bind:event="oninput" @bind:after="MarkDirty" /></label>
+                <label class="toggle"><input type="checkbox" @bind="footer.IsVisible" @bind:after="MarkDirty" /> Visible</label>
+                <h3>Languages</h3>
+                <LanguageSelector Languages="Workspace.Localization.Languages" LanguageCodes="footer.LanguageCodes"
+                                  DefaultLanguageCode="Workspace.Localization.DefaultLanguageCode" Changed="MarkDirty" TestId="footer-languages" />
+                <h3>Footer translations</h3>
+                <LocalizedTextEditor Definition="footer.Copyright" Languages="Workspace.Localization.Languages"
+                                     LanguageCodes="footer.LanguageCodes" Changed="MarkDirty" />
+                <h3>Status widgets</h3>
+                <div class="widget-list">
+                    @foreach (var widget in Enum.GetValues<FooterWidgetKind>())
+                    {
+                        <label class="toggle"><input type="checkbox" checked="@footer.Widgets.Contains(widget)"
+                            @onchange="args => ToggleWidget(widget, args.Value is true)" /> @widget</label>
+                    }
+                </div>
+                <h3>Footer links</h3>
+                @foreach (var item in footer.Links)
+                {
+                    <div @key="item.Id" class="item-editor">
+                        <label>URL<input @bind="item.Url" @bind:event="oninput" @bind:after="MarkDirty" /></label>
+                        <LocalizedTextEditor Definition="item.LabelResource" Languages="Workspace.Localization.Languages"
+                                             LanguageCodes="footer.LanguageCodes" Changed="MarkDirty" />
+                        <button class="danger" @onclick="() => RemoveFooterLink(item.Id)">Remove link</button>
+                    </div>
+                }
+                <button data-testid="add-footer-link" class="add-row" @onclick="AddFooterLink">+ Footer link</button>
+            }
+        </aside>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ChromeBuilderKind Kind { get; set; }
+
+    private BuilderWorkspaceDefinition Workspace = PageBuilderService.CreateWorkspace("My application");
+    private Guid selectedId;
+    private string previewLanguageCode = "en";
+    private string? statusMessage;
+    private bool saveSucceeded;
+
+    private HeaderDefinition? CurrentHeader => Workspace.Headers.FirstOrDefault(item => item.Id == selectedId) ?? Workspace.Headers.FirstOrDefault();
+    private FooterDefinition? CurrentFooter => Workspace.Footers.FirstOrDefault(item => item.Id == selectedId) ?? Workspace.Footers.FirstOrDefault();
+    private string CurrentName => Kind == ChromeBuilderKind.Header ? CurrentHeader?.Name ?? "Header" : CurrentFooter?.Name ?? "Footer";
+    private IReadOnlyList<string> CurrentLanguageCodes => Kind == ChromeBuilderKind.Header
+        ? CurrentHeader?.LanguageCodes ?? []
+        : CurrentFooter?.LanguageCodes ?? [];
+    private IReadOnlyList<LanguageDefinition> CurrentLanguages => Workspace.Localization.Languages
+        .Where(language => CurrentLanguageCodes.Contains(language.Code, StringComparer.OrdinalIgnoreCase)).ToArray();
+    private string PreviewDirection => Workspace.Localization.Languages.FirstOrDefault(language =>
+        string.Equals(language.Code, previewLanguageCode, StringComparison.OrdinalIgnoreCase))?.Direction == ContentDirection.RightToLeft ? "rtl" : "ltr";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { Workspace = await Store.LoadAsync() ?? Workspace; }
+        catch (Exception exception) when (exception is JSException or System.Text.Json.JsonException) { statusMessage = "Local draft unavailable"; }
+        PageBuilderService.NormalizeWorkspace(Workspace);
+        selectedId = Kind == ChromeBuilderKind.Header ? Workspace.Headers[0].Id : Workspace.Footers[0].Id;
+        ResetPreviewLanguage();
+    }
+
+    private void Select(Guid id) { selectedId = id; ResetPreviewLanguage(); }
+
+    private void AddDefinition()
+    {
+        selectedId = Kind == ChromeBuilderKind.Header
+            ? PageBuilderService.AddHeader(Workspace, $"Header {Workspace.Headers.Count + 1}").Id
+            : PageBuilderService.AddFooter(Workspace, $"Footer {Workspace.Footers.Count + 1}").Id;
+        ResetPreviewLanguage();
+        MarkDirty();
+    }
+
+    private void AddHeaderItem()
+    {
+        if (CurrentHeader is null) return;
+        var item = new NavigationItemDefinition { Id = Guid.NewGuid(), Label = "Menu item", Url = "/" };
+        item.LabelResource.Key = $"menu.{item.Id:N}.label";
+        foreach (var code in CurrentHeader.LanguageCodes) item.LabelResource.Values[code] = "Menu item";
+        CurrentHeader.MenuItems.Add(item);
+        MarkDirty();
+    }
+
+    private void RemoveHeaderItem(Guid id) { CurrentHeader?.MenuItems.RemoveAll(item => item.Id == id); MarkDirty(); }
+
+    private void AddFooterLink()
+    {
+        if (CurrentFooter is null) return;
+        var item = new NavigationItemDefinition { Id = Guid.NewGuid(), Label = "Footer link", Url = "/" };
+        item.LabelResource.Key = $"footer.links.{item.Id:N}.label";
+        foreach (var code in CurrentFooter.LanguageCodes) item.LabelResource.Values[code] = "Footer link";
+        CurrentFooter.Links.Add(item);
+        MarkDirty();
+    }
+
+    private void RemoveFooterLink(Guid id) { CurrentFooter?.Links.RemoveAll(item => item.Id == id); MarkDirty(); }
+
+    private void ToggleWidget(FooterWidgetKind widget, bool enabled)
+    {
+        if (CurrentFooter is null) return;
+        if (enabled) CurrentFooter.Widgets.Add(widget); else CurrentFooter.Widgets.Remove(widget);
+        MarkDirty();
+    }
+
+    private void ChangePreviewLanguage(ChangeEventArgs args) => previewLanguageCode = args.Value?.ToString() ?? Workspace.Localization.DefaultLanguageCode;
+
+    private void ResetPreviewLanguage()
+    {
+        previewLanguageCode = CurrentLanguageCodes.Contains(Workspace.Localization.DefaultLanguageCode, StringComparer.OrdinalIgnoreCase)
+            ? Workspace.Localization.DefaultLanguageCode
+            : CurrentLanguageCodes.FirstOrDefault() ?? Workspace.Localization.DefaultLanguageCode;
+    }
+
+    private async Task SaveAsync()
+    {
+        PageBuilderService.Touch(Workspace);
+        try { await Store.SaveAsync(Workspace); statusMessage = "Workspace saved locally"; saveSucceeded = true; }
+        catch (JSException) { statusMessage = "Browser storage is unavailable"; saveSucceeded = false; }
+    }
+
+    private void MarkDirty() { statusMessage = "Unsaved changes"; saveSucceeded = false; StateHasChanged(); }
+}

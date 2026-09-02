@@ -1,12 +1,12 @@
 @implements IAsyncDisposable
 
-<footer class="status-footer">
+<footer class="status-footer" dir="@Direction">
     <div class="footer-main">
-        <span>@Definition.CopyrightText</span>
+        <span>@Definition.Copyright.Resolve(LanguageCode, Definition.CopyrightText)</span>
         <nav>
             @foreach (var link in Definition.Links)
             {
-                <span>@link.Label</span>
+                <span>@link.LabelResource.Resolve(LanguageCode, link.Label)</span>
             }
         </nav>
     </div>
@@ -40,6 +40,10 @@
 @code {
     [Parameter, EditorRequired]
     public required FooterDefinition Definition { get; set; }
+
+    [Parameter] public string? LanguageCode { get; set; }
+
+    [Parameter] public string Direction { get; set; } = "ltr";
 
     private readonly CancellationTokenSource cancellation = new();
     private PeriodicTimer? timer;

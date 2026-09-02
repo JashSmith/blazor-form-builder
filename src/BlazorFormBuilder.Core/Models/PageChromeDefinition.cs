@@ -2,9 +2,17 @@ namespace BlazorFormBuilder.Core.Models;
 
 public sealed class HeaderDefinition
 {
+    public Guid Id { get; init; } = Guid.NewGuid();
+
+    public string Name { get; set; } = "Default header";
+
     public bool IsVisible { get; set; } = true;
 
     public string BrandText { get; set; } = "My application";
+
+    public LocalizedTextDefinition Brand { get; init; } = new() { Key = "header.brand" };
+
+    public List<string> LanguageCodes { get; init; } = ["en"];
 
     public List<NavigationItemDefinition> MenuItems { get; init; } =
     [
@@ -18,14 +26,24 @@ public sealed class NavigationItemDefinition
 
     public required string Label { get; set; }
 
+    public LocalizedTextDefinition LabelResource { get; init; } = new();
+
     public required string Url { get; set; }
 }
 
 public sealed class FooterDefinition
 {
+    public Guid Id { get; init; } = Guid.NewGuid();
+
+    public string Name { get; set; } = "Default footer";
+
     public bool IsVisible { get; set; } = true;
 
     public string CopyrightText { get; set; } = "Built with Blazor Form Builder";
+
+    public LocalizedTextDefinition Copyright { get; init; } = new() { Key = "footer.copyright" };
+
+    public List<string> LanguageCodes { get; init; } = ["en"];
 
     public List<NavigationItemDefinition> Links { get; init; } = [];
 

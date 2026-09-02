@@ -29,6 +29,12 @@ public sealed class BuilderInteractionTests : BunitContext
 
         component.Find("[data-testid='open-page-builder']").Click();
         Assert.Contains("Page builder", component.Markup, StringComparison.OrdinalIgnoreCase);
+
+        component.Find("[data-testid='open-header-builder']").Click();
+        Assert.Contains("HEADER &amp; MENU LIBRARY", component.Markup, StringComparison.Ordinal);
+
+        component.Find("[data-testid='open-footer-builder']").Click();
+        Assert.Contains("FOOTER LIBRARY", component.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -89,6 +95,44 @@ public sealed class BuilderInteractionTests : BunitContext
         component.Find("[data-testid='toggle-form-preview']").Click();
         Assert.Contains("LIVE FORM", component.Markup, StringComparison.Ordinal);
         Assert.Single(component.FindAll("input[type='email']"));
+    }
+
+    [Fact]
+    public void HeaderLibraryCreatesAndPersistsReusableVariant()
+    {
+        var component = Render<ChromeDesigner>(parameters => parameters.Add(item => item.Kind, ChromeBuilderKind.Header));
+
+        component.Find("[data-testid='create-chrome']").Click();
+        component.Find("[data-testid='add-menu-item']").Click();
+        component.Find("[data-testid='save-chrome']").Click();
+
+        Assert.Equal(2, component.FindAll(".definition-list > button").Count);
+        Assert.Equal(2, workspaceStore.SavedWorkspace?.Headers.Count);
+        Assert.Equal(2, workspaceStore.SavedWorkspace?.Headers.Last().MenuItems.Count);
+    }
+
+    [Fact]
+    public void PagePreviewSwitchesToRtlForPersian()
+    {
+        var component = Render<PageDesigner>();
+
+        component.Find("[data-testid='page-languages'] input:not([disabled])").Change(true);
+        component.Find("select[aria-label='Page preview language']").Change("fa");
+
+        Assert.Contains("dir=\"rtl\"", component.Find(".page-canvas").OuterHtml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void FormCollectsTranslationKeyAndRtlValues()
+    {
+        var component = Render<FormDesigner>();
+
+        component.Find("[data-testid='form-languages'] input:not([disabled])").Change(true);
+        component.Find("input[placeholder='example.section.title']").Input("forms.customer.title");
+        component.Find("[data-testid='toggle-form-preview']").Click();
+        component.Find("select[aria-label='Form preview language']").Change("fa");
+
+        Assert.Contains("dir=\"rtl\"", component.Find(".preview-card").OuterHtml, StringComparison.Ordinal);
     }
 
     private sealed class MemoryFormStore : IFormDefinitionStore

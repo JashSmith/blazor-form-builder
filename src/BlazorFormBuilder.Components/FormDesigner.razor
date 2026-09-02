@@ -102,6 +102,21 @@
             </main>
 
             <aside class="designer-panel properties" aria-label="Field properties">
+                <h2>Languages</h2>
+                <LanguageSelector Languages="Definition.Localization.Languages" LanguageCodes="Definition.LanguageCodes"
+                                  DefaultLanguageCode="Definition.Localization.DefaultLanguageCode" Changed="MarkDirty" TestId="form-languages" />
+                <h3>Form title translations</h3>
+                <LocalizedTextEditor Definition="Definition.Title" Languages="Definition.Localization.Languages"
+                                     LanguageCodes="Definition.LanguageCodes" Changed="MarkDirty" />
+                <details>
+                    <summary>Add language</summary>
+                    <div class="language-add">
+                        <input aria-label="Form language code" placeholder="ar" @bind="newLanguageCode" />
+                        <input aria-label="Form language name" placeholder="العربية" @bind="newLanguageName" />
+                        <label class="checkbox"><input type="checkbox" @bind="newLanguageIsRtl" /> RTL</label>
+                        <button data-testid="add-form-language" class="secondary" @onclick="AddLanguage">Add language</button>
+                    </div>
+                </details>
                 <h2>Properties</h2>
                 @{ var selectedItem = SelectedField; }
                 @if (selectedItem is null)
@@ -114,6 +129,12 @@
                     <label>Label<input @bind="selectedItem.Label" @bind:event="oninput" @bind:after="MarkDirty" /></label>
                     <label>Key<input @bind="selectedItem.Key" @bind:event="oninput" @bind:after="MarkDirty" /></label>
                     <label>Placeholder<input @bind="selectedItem.Placeholder" @bind:event="oninput" @bind:after="MarkDirty" /></label>
+                    <h3>Label translations</h3>
+                    <LocalizedTextEditor Definition="selectedItem.LabelResource" Languages="Definition.Localization.Languages"
+                                         LanguageCodes="Definition.LanguageCodes" Changed="MarkDirty" />
+                    <h3>Placeholder translations</h3>
+                    <LocalizedTextEditor Definition="selectedItem.PlaceholderResource" Languages="Definition.Localization.Languages"
+                                         LanguageCodes="Definition.LanguageCodes" Changed="MarkDirty" />
                     <label class="checkbox"><input type="checkbox" @bind="selectedItem.IsRequired" @bind:after="MarkDirty" /> Required</label>
 
                     @if (SelectedFieldIssues.Count > 0)
@@ -143,6 +164,9 @@
     private string? statusMessage;
     private Guid? draggedFieldId;
     private string? draggedPluginType;
+    private string newLanguageCode = string.Empty;
+    private string newLanguageName = string.Empty;
+    private bool newLanguageIsRtl;
 
     private FormFieldDefinition? SelectedField =>
         Definition.Fields.FirstOrDefault(item => item.Id == selectedFieldId);
@@ -165,6 +189,7 @@
         try
         {
             Definition = await Store.LoadAsync() ?? Definition;
+            FormDefinitionService.NormalizeLocalization(Definition);
             if (Definition.Fields.Count > 0)
             {
                 statusMessage = "Draft restored";
@@ -194,6 +219,10 @@
     {
         var key = FormDefinitionService.CreateUniqueKey(Definition, plugin.Type);
         var item = plugin.CreateField(key);
+        item.LabelResource.Key = $"forms.{Definition.Id:N}.fields.{key}.label";
+        item.LabelResource.Values[Definition.Localization.DefaultLanguageCode] = item.Label;
+        item.PlaceholderResource.Key = $"forms.{Definition.Id:N}.fields.{key}.placeholder";
+        item.PlaceholderResource.Values[Definition.Localization.DefaultLanguageCode] = item.Placeholder ?? string.Empty;
         FormDefinitionService.AddField(Definition, item);
         FormDefinitionService.MoveFieldToIndex(Definition, item.Id, index);
         selectedFieldId = item.Id;
@@ -291,4 +320,28 @@
     private void ToggleJson() => showJson = !showJson;
 
     private void TogglePreview() => isPreview = !isPreview;
+
+    private void AddLanguage()
+    {
+        var code = newLanguageCode.Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(code) || Definition.Localization.Languages.Any(language =>
+            string.Equals(language.Code, code, StringComparison.OrdinalIgnoreCase)))
+        {
+            statusMessage = "Enter a unique language code";
+            saveSucceeded = false;
+            return;
+        }
+
+        Definition.Localization.Languages.Add(new()
+        {
+            Code = code,
+            DisplayName = string.IsNullOrWhiteSpace(newLanguageName) ? code.ToUpperInvariant() : newLanguageName.Trim(),
+            Direction = newLanguageIsRtl ? ContentDirection.RightToLeft : ContentDirection.LeftToRight
+        });
+        PageBuilderService.ToggleLanguage(Definition.LanguageCodes, code, true, Definition.Localization.DefaultLanguageCode);
+        newLanguageCode = string.Empty;
+        newLanguageName = string.Empty;
+        newLanguageIsRtl = false;
+        MarkDirty();
+    }
 }
