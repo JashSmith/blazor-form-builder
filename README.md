@@ -4,13 +4,15 @@ A plugin-first, low-code form designer built with standalone Blazor WebAssembly 
 
 ## First vertical slice
 
-The initial feature provides a working form-designer shell:
+The form-designer MVP provides a working design-to-runtime flow:
 
 - field toolbox populated through dependency-injected RCL plugins;
 - canvas with selection, removal, and field reordering;
 - live property editing for label, key, placeholder, and required state;
-- JSON definition preview;
-- a standard text-input plugin as the reference implementation;
+- JSON definition preview and schema validation;
+- browser-local draft persistence and automatic restore;
+- interactive runtime preview with submission validation;
+- standard text, email, number, date, long-text, and checkbox plugins;
 - domain tests and GitHub Actions CI.
 
 ## Architecture
@@ -50,6 +52,12 @@ dotnet test BlazorFormBuilder.slnx
 
 After this repository bootstrap, create `develop` from `main` and open subsequent feature branches against `develop`.
 
+## Current workflow
+
+Create fields in the toolbox, configure them in the property panel, save the valid definition, then use **Preview form** to enter values and exercise each plugin's runtime validation.
+
+Drafts are currently stored in the browser's `localStorage` behind the `IFormDefinitionStore` abstraction. A server implementation can replace it without changing the designer RCL.
+
 ## Next slice
 
-Persist versioned form definitions behind an API boundary, add validation rules, and introduce additional field plugins before connecting form tasks to the BPMN model.
+Persist versioned form definitions through an ASP.NET Core API, add authentication and optimistic concurrency, then connect published forms to BPMN user tasks.

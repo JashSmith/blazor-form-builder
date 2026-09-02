@@ -1,92 +1,167 @@
 @inject IEnumerable<IFormFieldPlugin> AvailablePlugins
+@inject IFormDefinitionStore Store
 
-<div class="form-designer">
-    <aside class="designer-panel toolbox" aria-label="Field toolbox">
-        <h2>Fields</h2>
-        <p class="muted">Choose a field to add it to the form.</p>
-        @foreach (var plugin in Plugins)
-        {
-            <button class="toolbox-item" @onclick="() => AddField(plugin)">+ @plugin.DisplayName</button>
-        }
-    </aside>
-
-    <main class="designer-canvas">
-        <div class="canvas-heading">
-            <div>
-                <span class="eyebrow">FORM DESIGNER</span>
-                <input class="form-name" aria-label="Form name" @bind="Definition.Name" />
-            </div>
-            <button class="secondary" @onclick="ToggleJson">@(showJson ? "Hide JSON" : "View JSON")</button>
+<div class="designer-shell">
+    <header class="app-toolbar">
+        <div>
+            <span class="eyebrow">BLAZOR FORM BUILDER</span>
+            <h1>@(isPreview ? "Form preview" : "Form designer")</h1>
         </div>
+        <div class="toolbar-actions">
+            @if (!string.IsNullOrWhiteSpace(statusMessage))
+            {
+                <span class="status @(saveSucceeded ? "success" : null)">@statusMessage</span>
+            }
+            <button class="secondary" @onclick="ToggleJson" disabled="@isPreview">JSON</button>
+            <button class="secondary" @onclick="TogglePreview">@(isPreview ? "Back to designer" : "Preview form")</button>
+            <button class="primary" @onclick="SaveAsync" disabled="@isPreview">Save form</button>
+        </div>
+    </header>
 
-        @if (Definition.Fields.Count == 0)
-        {
-            <button class="empty-state" @onclick="AddFirstField">
-                <strong>Your canvas is empty</strong>
-                <span>Add the first field to start designing.</span>
-            </button>
-        }
-        else
-        {
-            <div class="field-list">
-                @foreach (var field in Definition.Fields.OrderBy(field => field.Order))
+    @if (isPreview)
+    {
+        <FormPreview Definition="Definition" />
+    }
+    else
+    {
+        <div class="form-designer">
+            <aside class="designer-panel toolbox" aria-label="Field toolbox">
+                <h2>Fields</h2>
+                <p class="muted">Choose a field to add it to the form.</p>
+                @foreach (var plugin in Plugins)
                 {
-                    var plugin = PluginsByType[field.Type];
-                    <article class="field-card @(selectedFieldId == field.Id ? "selected" : null)"
-                             @onclick="() => Select(field.Id)">
-                        <DynamicComponent Type="plugin.PreviewComponentType"
-                                          Parameters="FormFieldPreviewParameters.For(field)" />
-                        <div class="field-actions">
-                            <button title="Move up" disabled="@(field.Order == 0)" @onclick="() => Move(field.Id, -1)" @onclick:stopPropagation>↑</button>
-                            <button title="Move down" disabled="@(field.Order == Definition.Fields.Count - 1)" @onclick="() => Move(field.Id, 1)" @onclick:stopPropagation>↓</button>
-                            <button class="danger" title="Remove" @onclick="() => Remove(field.Id)" @onclick:stopPropagation>×</button>
-                        </div>
-                    </article>
+                    <button class="toolbox-item" @onclick="() => AddField(plugin)">+ @plugin.DisplayName</button>
                 }
-            </div>
-        }
+            </aside>
 
-        @if (showJson)
-        {
-            <pre class="json-preview">@SerializedDefinition</pre>
-        }
-    </main>
+            <main class="designer-canvas">
+                <div class="canvas-heading">
+                    <div>
+                        <span class="eyebrow">FORM NAME</span>
+                        <input class="form-name" aria-label="Form name" @bind="Definition.Name" @bind:event="oninput" @bind:after="MarkDirty" />
+                    </div>
+                    <span class="field-count">@Definition.Fields.Count field@(Definition.Fields.Count == 1 ? null : "s")</span>
+                </div>
 
-    <aside class="designer-panel properties" aria-label="Field properties">
-        <h2>Properties</h2>
-        @{ var selectedField = SelectedField; }
-        @if (selectedField is null)
-        {
-            <p class="muted">Select a field on the canvas to edit it.</p>
-        }
-        else
-        {
-            <label>Label<input @bind="selectedField.Label" @bind:event="oninput" /></label>
-            <label>Key<input @bind="selectedField.Key" @bind:event="oninput" /></label>
-            <label>Placeholder<input @bind="selectedField.Placeholder" @bind:event="oninput" /></label>
-            <label class="checkbox"><input type="checkbox" @bind="selectedField.IsRequired" /> Required</label>
-        }
-    </aside>
+                @if (validationRequested && DefinitionIssues.Count > 0)
+                {
+                    <div class="validation-summary" role="alert">
+                        <strong>Fix @DefinitionIssues.Count issue@(DefinitionIssues.Count == 1 ? null : "s") before saving.</strong>
+                        <ul>
+                            @foreach (var issue in DefinitionIssues)
+                            {
+                                <li>@issue.Message</li>
+                            }
+                        </ul>
+                    </div>
+                }
+
+                @if (Definition.Fields.Count == 0)
+                {
+                    <button class="empty-state" @onclick="AddFirstField">
+                        <strong>Your canvas is empty</strong>
+                        <span>Add the first field to start designing.</span>
+                    </button>
+                }
+                else
+                {
+                    <div class="field-list">
+                        @foreach (var item in Definition.Fields.OrderBy(item => item.Order))
+                        {
+                            var plugin = PluginsByType[item.Type];
+                            <article @key="item.Id"
+                                     class="field-card @(selectedFieldId == item.Id ? "selected" : null)"
+                                     @onclick="() => Select(item.Id)">
+                                <DynamicComponent Type="plugin.DesignerComponentType"
+                                                  Parameters="FormFieldComponentParameters.ForDesigner(item)" />
+                                <div class="field-actions">
+                                    <button title="Move up" disabled="@(item.Order == 0)" @onclick="() => Move(item.Id, -1)" @onclick:stopPropagation>↑</button>
+                                    <button title="Move down" disabled="@(item.Order == Definition.Fields.Count - 1)" @onclick="() => Move(item.Id, 1)" @onclick:stopPropagation>↓</button>
+                                    <button class="danger" title="Remove" @onclick="() => Remove(item.Id)" @onclick:stopPropagation>×</button>
+                                </div>
+                            </article>
+                        }
+                    </div>
+                }
+
+                @if (showJson)
+                {
+                    <pre class="json-preview">@SerializedDefinition</pre>
+                }
+            </main>
+
+            <aside class="designer-panel properties" aria-label="Field properties">
+                <h2>Properties</h2>
+                @{ var selectedItem = SelectedField; }
+                @if (selectedItem is null)
+                {
+                    <p class="muted">Select a field on the canvas to edit it.</p>
+                }
+                else
+                {
+                    <span class="type-badge">@selectedItem.Type</span>
+                    <label>Label<input @bind="selectedItem.Label" @bind:event="oninput" @bind:after="MarkDirty" /></label>
+                    <label>Key<input @bind="selectedItem.Key" @bind:event="oninput" @bind:after="MarkDirty" /></label>
+                    <label>Placeholder<input @bind="selectedItem.Placeholder" @bind:event="oninput" @bind:after="MarkDirty" /></label>
+                    <label class="checkbox"><input type="checkbox" @bind="selectedItem.IsRequired" @bind:after="MarkDirty" /> Required</label>
+
+                    @if (SelectedFieldIssues.Count > 0)
+                    {
+                        <ul class="property-errors">
+                            @foreach (var issue in SelectedFieldIssues)
+                            {
+                                <li>@issue.Message</li>
+                            }
+                        </ul>
+                    }
+                }
+            </aside>
+        </div>
+    }
 </div>
 
 @code {
-    private readonly FormDefinition Definition = FormDefinitionService.Create("Customer intake");
+    private FormDefinition Definition = FormDefinitionService.Create("Customer intake");
     private IReadOnlyList<IFormFieldPlugin> Plugins = [];
     private IReadOnlyDictionary<string, IFormFieldPlugin> PluginsByType = new Dictionary<string, IFormFieldPlugin>();
     private Guid? selectedFieldId;
     private bool showJson;
+    private bool isPreview;
+    private bool validationRequested;
+    private bool saveSucceeded;
+    private string? statusMessage;
 
     private FormFieldDefinition? SelectedField =>
         Definition.Fields.FirstOrDefault(item => item.Id == selectedFieldId);
+
+    private IReadOnlyList<FormValidationIssue> DefinitionIssues => FormDefinitionValidator.Validate(Definition);
+
+    private IReadOnlyList<FormValidationIssue> SelectedFieldIssues => DefinitionIssues
+        .Where(issue => issue.FieldId == selectedFieldId)
+        .ToArray();
 
     private string SerializedDefinition => System.Text.Json.JsonSerializer.Serialize(
         Definition,
         new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         Plugins = AvailablePlugins.OrderBy(plugin => plugin.DisplayName).ToArray();
         PluginsByType = Plugins.ToDictionary(plugin => plugin.Type, StringComparer.OrdinalIgnoreCase);
+
+        try
+        {
+            Definition = await Store.LoadAsync() ?? Definition;
+            if (Definition.Fields.Count > 0)
+            {
+                statusMessage = "Draft restored";
+                saveSucceeded = true;
+            }
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or System.Text.Json.JsonException)
+        {
+            statusMessage = "Saved draft could not be restored";
+        }
     }
 
     private void AddFirstField()
@@ -100,9 +175,10 @@
     private void AddField(IFormFieldPlugin plugin)
     {
         var key = FormDefinitionService.CreateUniqueKey(Definition, plugin.Type);
-        var field = plugin.CreateField(key);
-        FormDefinitionService.AddField(Definition, field);
-        selectedFieldId = field.Id;
+        var item = plugin.CreateField(key);
+        FormDefinitionService.AddField(Definition, item);
+        selectedFieldId = item.Id;
+        MarkDirty();
     }
 
     private void Select(Guid fieldId) => selectedFieldId = fieldId;
@@ -114,9 +190,41 @@
         {
             selectedFieldId = null;
         }
+
+        MarkDirty();
     }
 
-    private void Move(Guid fieldId, int offset) => FormDefinitionService.MoveField(Definition, fieldId, offset);
+    private void Move(Guid fieldId, int offset)
+    {
+        if (FormDefinitionService.MoveField(Definition, fieldId, offset))
+        {
+            MarkDirty();
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        validationRequested = true;
+        if (DefinitionIssues.Count > 0)
+        {
+            statusMessage = "Form has validation errors";
+            saveSucceeded = false;
+            return;
+        }
+
+        FormDefinitionService.Touch(Definition);
+        await Store.SaveAsync(Definition);
+        statusMessage = "Saved locally";
+        saveSucceeded = true;
+    }
+
+    private void MarkDirty()
+    {
+        statusMessage = "Unsaved changes";
+        saveSucceeded = false;
+    }
 
     private void ToggleJson() => showJson = !showJson;
+
+    private void TogglePreview() => isPreview = !isPreview;
 }

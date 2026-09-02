@@ -1,0 +1,5 @@
+.runtime-field { display: grid; gap: .45rem; color: #344054; font-size: .9rem; font-weight: 600; }
+.runtime-field strong { color: #d92d20; }
+.runtime-field input:not([type=checkbox]), .runtime-field textarea { width: 100%; padding: .75rem; color: #101828; background: #fff; border: 1px solid #d0d5dd; border-radius: 8px; resize: vertical; }
+.runtime-field input:focus, .runtime-field textarea:focus { outline: 3px solid #f4ebff; border-color: #7f56d9; }
+.checkbox-input { display: flex; gap: .5rem; align-items: center; font-weight: 400; }

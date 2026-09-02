@@ -1,0 +1,42 @@
+<label class="runtime-field">
+    <span>@Field.Label @if (Field.IsRequired) { <strong aria-label="required">*</strong> }</span>
+    @switch (Field.Type)
+    {
+        case "textarea":
+            <textarea value="@Value" placeholder="@Field.Placeholder" @oninput="HandleInput"></textarea>
+            break;
+        case "checkbox":
+            <span class="checkbox-input">
+                <input type="checkbox" checked="@IsChecked" @onchange="HandleCheckbox" /> @Field.Placeholder
+            </span>
+            break;
+        default:
+            <input type="@InputType" value="@Value" placeholder="@Field.Placeholder" @oninput="HandleInput" />
+            break;
+    }
+</label>
+
+@code {
+    [Parameter, EditorRequired]
+    public required FormFieldDefinition Field { get; set; }
+
+    [Parameter]
+    public string? Value { get; set; }
+
+    [Parameter]
+    public EventCallback<string?> ValueChanged { get; set; }
+
+    private bool IsChecked => string.Equals(Value, bool.TrueString, StringComparison.OrdinalIgnoreCase);
+
+    private string InputType => Field.Type switch
+    {
+        "email" => "email",
+        "number" => "number",
+        "date" => "date",
+        _ => "text"
+    };
+
+    private Task HandleInput(ChangeEventArgs args) => ValueChanged.InvokeAsync(args.Value?.ToString());
+
+    private Task HandleCheckbox(ChangeEventArgs args) => ValueChanged.InvokeAsync(args.Value?.ToString());
+}

@@ -1,0 +1,4 @@
+.designer-field { display: grid; gap: .4rem; color: #344054; font-size: .875rem; font-weight: 600; }
+.designer-field strong { color: #d92d20; }
+.designer-field input:not([type=checkbox]), .designer-field textarea { width: 100%; padding: .7rem; color: #667085; background: #f9fafb; border: 1px solid #d0d5dd; border-radius: 8px; resize: vertical; }
+.checkbox-preview { display: flex; gap: .45rem; align-items: center; color: #667085; font-weight: 400; }
