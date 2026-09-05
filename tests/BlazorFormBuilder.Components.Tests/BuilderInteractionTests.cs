@@ -121,7 +121,7 @@ public sealed class BuilderInteractionTests : BunitContext
         component.Find("[data-testid='chrome-step-2']").Click();
         component.Find("[data-testid='footer-languages'] input:not([disabled])").Change(true);
         component.Find("select[aria-label='Preview language']").Change("fa");
-        component.FindAll(".localized-editor input[dir='rtl']").First().Input("تمام حقوق محفوظ است");
+        component.FindAll(".localized-editor input[dir='rtl']")[0].Input("تمام حقوق محفوظ است");
 
         var preview = component.Find("[data-testid='chrome-preview']");
         Assert.Contains("dir=\"rtl\"", preview.OuterHtml, StringComparison.Ordinal);
