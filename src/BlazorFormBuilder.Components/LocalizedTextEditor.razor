@@ -4,9 +4,10 @@
     </label>
     @foreach (var language in SelectedLanguages)
     {
-        <label>
+        <label data-language="@language.Code">
             <span>@language.DisplayName <code>@language.Code</code> · @(language.Direction == ContentDirection.RightToLeft ? "RTL" : "LTR")</span>
-            <input dir="@(language.Direction == ContentDirection.RightToLeft ? "rtl" : "ltr")"
+            <input aria-label="@($"{language.DisplayName} translation")"
+                   dir="@(language.Direction == ContentDirection.RightToLeft ? "rtl" : "ltr")"
                    value="@ValueFor(language.Code)"
                    @oninput="args => SetValue(language.Code, args.Value?.ToString())" />
         </label>

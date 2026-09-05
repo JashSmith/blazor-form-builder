@@ -144,6 +144,7 @@ public static partial class PageBuilderService
         {
             EnsureLanguageSelection(footer.LanguageCodes, workspace.Localization.DefaultLanguageCode);
             footer.Copyright.Values.TryAdd(workspace.Localization.DefaultLanguageCode, footer.CopyrightText);
+            EnsureFooterWidgetLabels(footer);
             foreach (var item in footer.Links)
             {
                 item.LabelResource.Key = string.IsNullOrWhiteSpace(item.LabelResource.Key) ? $"footer.links.{item.Id:N}.label" : item.LabelResource.Key;
@@ -283,6 +284,31 @@ public static partial class PageBuilderService
         if (!languageCodes.Contains(defaultCode, StringComparer.OrdinalIgnoreCase))
         {
             languageCodes.Insert(0, defaultCode);
+        }
+    }
+
+    private static void EnsureFooterWidgetLabels(FooterDefinition footer)
+    {
+        foreach (var widget in Enum.GetValues<FooterWidgetKind>())
+        {
+            if (footer.WidgetLabels.ContainsKey(widget))
+            {
+                continue;
+            }
+
+            footer.WidgetLabels[widget] = new()
+            {
+                Key = $"footer.widgets.{widget.ToString().ToLowerInvariant()}"
+            };
+            footer.WidgetLabels[widget].Values["en"] = widget switch
+            {
+                FooterWidgetKind.Messages => "0 messages",
+                FooterWidgetKind.Logs => "Logs ready",
+                FooterWidgetKind.Progress => "35%",
+                FooterWidgetKind.Clock => "Clock",
+                FooterWidgetKind.Connection => "Online",
+                _ => widget.ToString()
+            };
         }
     }
 

@@ -53,6 +53,15 @@ public sealed class FooterDefinition
         FooterWidgetKind.Progress,
         FooterWidgetKind.Clock
     ];
+
+    public Dictionary<FooterWidgetKind, LocalizedTextDefinition> WidgetLabels { get; init; } = new()
+    {
+        [FooterWidgetKind.Messages] = new() { Key = "footer.widgets.messages", Values = { ["en"] = "0 messages", ["fa"] = "۰ پیام" } },
+        [FooterWidgetKind.Logs] = new() { Key = "footer.widgets.logs", Values = { ["en"] = "Logs ready", ["fa"] = "لاگ آماده" } },
+        [FooterWidgetKind.Progress] = new() { Key = "footer.widgets.progress", Values = { ["en"] = "35%", ["fa"] = "۳۵٪" } },
+        [FooterWidgetKind.Clock] = new() { Key = "footer.widgets.clock", Values = { ["en"] = "Clock", ["fa"] = "زمان" } },
+        [FooterWidgetKind.Connection] = new() { Key = "footer.widgets.connection", Values = { ["en"] = "Online", ["fa"] = "آنلاین" } }
+    };
 }
 
 public enum FooterWidgetKind

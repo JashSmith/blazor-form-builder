@@ -15,19 +15,19 @@
         <div class="status-widgets">
             @if (Definition.Widgets.Contains(FooterWidgetKind.Messages))
             {
-                <span title="Messages">✉ 0 messages</span>
+                <span title="Messages">✉ @WidgetText(FooterWidgetKind.Messages, "0 messages")</span>
             }
             @if (Definition.Widgets.Contains(FooterWidgetKind.Logs))
             {
-                <span title="Logs">≡ Logs ready</span>
+                <span title="Logs">≡ @WidgetText(FooterWidgetKind.Logs, "Logs ready")</span>
             }
             @if (Definition.Widgets.Contains(FooterWidgetKind.Progress))
             {
-                <span class="progress-widget" title="Progress"><i><b></b></i> 35%</span>
+                <span class="progress-widget" title="Progress"><i><b></b></i> @WidgetText(FooterWidgetKind.Progress, "35%")</span>
             }
             @if (Definition.Widgets.Contains(FooterWidgetKind.Connection))
             {
-                <span title="Connection"><em></em> Online</span>
+                <span title="Connection"><em></em> @WidgetText(FooterWidgetKind.Connection, "Online")</span>
             }
             @if (Definition.Widgets.Contains(FooterWidgetKind.Clock))
             {
@@ -48,6 +48,9 @@
     private readonly CancellationTokenSource cancellation = new();
     private PeriodicTimer? timer;
     private string currentTime = DateTime.Now.ToString("HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture);
+
+    private string WidgetText(FooterWidgetKind kind, string fallback) =>
+        Definition.WidgetLabels.TryGetValue(kind, out var label) ? label.Resolve(LanguageCode, fallback) : fallback;
 
     protected override void OnInitialized()
     {

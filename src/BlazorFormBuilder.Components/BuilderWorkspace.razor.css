@@ -6,7 +6,10 @@
 nav { display: grid; gap: .4rem; margin-top: 1.5rem; }
 nav button { display: flex; align-items: center; gap: .65rem; padding: .75rem; color: #d0d5dd; background: transparent; border: 0; border-radius: 8px; cursor: pointer; text-align: left; }
 nav button:hover, nav button.active { color: #fff; background: #344054; }
-nav button span { font-size: 1.1rem; }
+.nav-index { display: grid; width: 1.7rem; height: 1.7rem; flex: 0 0 auto; place-items: center; color: #d6bbfb; background: #344054; border-radius: 999px; font-size: .7rem; font-weight: 800; }
+nav button.active .nav-index { color: #fff; background: #7f56d9; }
+.nav-copy { display: grid; gap: .15rem; min-width: 0; }
+.nav-copy strong { font-size: .82rem; }.nav-copy small { overflow: hidden; color: #98a2b3; font-size: .64rem; text-overflow: ellipsis; white-space: nowrap; }
 .workspace-help { display: grid; gap: .35rem; margin-top: auto; padding: .8rem; color: #d0d5dd; background: #1d2939; border-radius: 9px; font-size: .75rem; }
 .workspace-help span { color: #98a2b3; line-height: 1.45; }
 .workspace-content { min-width: 0; }

@@ -6,6 +6,12 @@
 .status { color: #b54708; font-size: .76rem; }.status.success { color: #067647; }
 .primary { padding: .58rem .8rem; color: #fff; background: #6941c6; border: 1px solid #6941c6; border-radius: 8px; cursor: pointer; }
 .builder-grid { display: grid; grid-template-columns: 210px minmax(420px, 1fr) 290px; gap: .8rem; align-items: start; }
+.builder-grid.step-0 .layout-section, .builder-grid.step-0 .elements-section, .builder-grid.step-0 .grid-settings, .builder-grid.step-0 .box-settings { display: none; }
+.builder-grid.step-1 .pages-section, .builder-grid.step-1 .page-settings-section, .builder-grid.step-1 .language-settings, .builder-grid.step-1 .box-settings { display: none; }
+.builder-grid.step-2 .pages-section, .builder-grid.step-2 .layout-section, .builder-grid.step-2 .page-settings-section, .builder-grid.step-2 .language-settings, .builder-grid.step-2 .grid-settings { display: none; }
+.builder-grid.step-3 { grid-template-columns: minmax(0, 1fr); }
+.builder-grid.step-3 .left-panel, .builder-grid.step-3 .right-panel { display: none; }
+.builder-grid.step-3 .remove-box, .builder-grid.step-3 .span-label { display: none; }
 .panel { background: #fff; border: 1px solid #e4e7ec; border-radius: 12px; }
 .left-panel, .right-panel { max-height: calc(100vh - 8rem); padding: 1rem; overflow: auto; }
 .left-panel section + section { margin-top: 1.3rem; padding-top: 1rem; border-top: 1px solid #eaecf0; }
@@ -58,5 +64,9 @@ summary { color: #344054; cursor: pointer; font-size: .78rem; font-weight: 700; 
 .repeater-row button { color: #b42318; background: #fff; border: 1px solid #fecdca; border-radius: 5px; cursor: pointer; }
 .add-row { padding: .45rem; color: #5925dc; background: #f4ebff; border: 1px dashed #b692f6; border-radius: 6px; cursor: pointer; }
 .language-add { display: grid; gap: .4rem; }
+.wizard-actions { display: flex; align-items: center; justify-content: flex-end; gap: .65rem; margin-top: 1rem; padding: .75rem 1rem; background: #fff; border: 1px solid #e4e7ec; border-radius: 12px; }
+.wizard-actions span { margin-inline-end: auto; color: #667085; font-size: .75rem; }
+.secondary { padding: .58rem .8rem; color: #344054; background: #fff; border: 1px solid #d0d5dd; border-radius: 8px; cursor: pointer; }
+.secondary:disabled { cursor: not-allowed; opacity: .45; }
 @media (max-width: 1250px) { .builder-grid { grid-template-columns: 190px minmax(360px, 1fr); } .right-panel { grid-column: 1 / -1; max-height: none; } }
 @media (max-width: 760px) { .builder-grid { grid-template-columns: 1fr; } .left-panel, .right-panel { max-height: none; } .page-toolbar { align-items: flex-start; flex-direction: column; } }

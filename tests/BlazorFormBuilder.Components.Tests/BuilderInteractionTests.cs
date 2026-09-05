@@ -103,12 +103,40 @@ public sealed class BuilderInteractionTests : BunitContext
         var component = Render<ChromeDesigner>(parameters => parameters.Add(item => item.Kind, ChromeBuilderKind.Header));
 
         component.Find("[data-testid='create-chrome']").Click();
+        component.Find("[data-testid='chrome-next']").Click();
         component.Find("[data-testid='add-menu-item']").Click();
         component.Find("[data-testid='save-chrome']").Click();
 
         Assert.Equal(2, component.FindAll(".definition-list > button").Count);
         Assert.Equal(2, workspaceStore.SavedWorkspace?.Headers.Count);
         Assert.Equal(2, workspaceStore.SavedWorkspace?.Headers.Last().MenuItems.Count);
+    }
+
+    [Fact]
+    public void FooterPersianTranslationUpdatesRtlPreview()
+    {
+        var component = Render<ChromeDesigner>(parameters => parameters.Add(item => item.Kind, ChromeBuilderKind.Footer));
+
+        component.Find("[data-testid='chrome-step-2']").Click();
+        component.Find("[data-testid='footer-languages'] input:not([disabled])").Change(true);
+        component.Find(".localized-editor label[data-language='fa'] input").Input("تمام حقوق محفوظ است");
+
+        var preview = component.Find("[data-testid='chrome-preview']");
+        Assert.Contains("dir=\"rtl\"", preview.OuterHtml, StringComparison.Ordinal);
+        Assert.Contains("تمام حقوق محفوظ است", preview.TextContent, StringComparison.Ordinal);
+        Assert.Contains("۰ پیام", preview.TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GuidedPageStepsShowFocusedControls()
+    {
+        var component = Render<PageDesigner>();
+
+        component.Find("[data-testid='page-step-1']").Click();
+        Assert.Contains("aria-current=\"step\"", component.Find("[data-testid='page-step-1']").OuterHtml, StringComparison.Ordinal);
+
+        component.Find("[data-testid='page-step-2']").Click();
+        Assert.Contains("Step 3 of 4", component.Markup, StringComparison.Ordinal);
     }
 
     [Fact]

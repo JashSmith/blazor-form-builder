@@ -18,13 +18,15 @@
         </div>
     </header>
 
+    <GuidedSteps Steps="WizardSteps" CurrentStep="currentStep" StepChanged="SetStep" TestId="form-step" />
+
     @if (isPreview)
     {
         <FormPreview Definition="Definition" />
     }
     else
     {
-        <div class="form-designer">
+        <div class="form-designer @($"step-{currentStep}")">
             <aside class="designer-panel toolbox" aria-label="Field toolbox">
                 <h2>Fields</h2>
                 <p class="muted">Drag a field onto the canvas or click to append.</p>
@@ -102,54 +104,73 @@
             </main>
 
             <aside class="designer-panel properties" aria-label="Field properties">
-                <h2>Languages</h2>
-                <LanguageSelector Languages="Definition.Localization.Languages" LanguageCodes="Definition.LanguageCodes"
-                                  DefaultLanguageCode="Definition.Localization.DefaultLanguageCode" Changed="MarkDirty" TestId="form-languages" />
-                <h3>Form title translations</h3>
-                <LocalizedTextEditor Definition="Definition.Title" Languages="Definition.Localization.Languages"
-                                     LanguageCodes="Definition.LanguageCodes" Changed="MarkDirty" />
-                <details>
-                    <summary>Add language</summary>
-                    <div class="language-add">
-                        <input aria-label="Form language code" placeholder="ar" @bind="newLanguageCode" />
-                        <input aria-label="Form language name" placeholder="العربية" @bind="newLanguageName" />
-                        <label class="checkbox"><input type="checkbox" @bind="newLanguageIsRtl" /> RTL</label>
-                        <button data-testid="add-form-language" class="secondary" @onclick="AddLanguage">Add language</button>
-                    </div>
-                </details>
-                <h2>Properties</h2>
                 @{ var selectedItem = SelectedField; }
-                @if (selectedItem is null)
-                {
-                    <p class="muted">Select a field on the canvas to edit it.</p>
-                }
-                else
-                {
-                    <span class="type-badge">@selectedItem.Type</span>
-                    <label>Label<input @bind="selectedItem.Label" @bind:event="oninput" @bind:after="MarkDirty" /></label>
-                    <label>Key<input @bind="selectedItem.Key" @bind:event="oninput" @bind:after="MarkDirty" /></label>
-                    <label>Placeholder<input @bind="selectedItem.Placeholder" @bind:event="oninput" @bind:after="MarkDirty" /></label>
-                    <h3>Label translations</h3>
-                    <LocalizedTextEditor Definition="selectedItem.LabelResource" Languages="Definition.Localization.Languages"
-                                         LanguageCodes="Definition.LanguageCodes" Changed="MarkDirty" />
-                    <h3>Placeholder translations</h3>
-                    <LocalizedTextEditor Definition="selectedItem.PlaceholderResource" Languages="Definition.Localization.Languages"
-                                         LanguageCodes="Definition.LanguageCodes" Changed="MarkDirty" />
-                    <label class="checkbox"><input type="checkbox" @bind="selectedItem.IsRequired" @bind:after="MarkDirty" /> Required</label>
-
-                    @if (SelectedFieldIssues.Count > 0)
+                <div class="content-properties">
+                    <h2>Quick properties</h2>
+                    @if (selectedItem is null)
                     {
-                        <ul class="property-errors">
+                        <p class="muted">Select a field on the canvas to edit it.</p>
+                    }
+                    else
+                    {
+                        <span class="type-badge">@selectedItem.Type</span>
+                        <label>Label<input @bind="selectedItem.Label" @bind:event="oninput" @bind:after="MarkDirty" /></label>
+                        <label>Key<input @bind="selectedItem.Key" @bind:event="oninput" @bind:after="MarkDirty" /></label>
+                        <label>Placeholder<input @bind="selectedItem.Placeholder" @bind:event="oninput" @bind:after="MarkDirty" /></label>
+                        <label class="checkbox"><input type="checkbox" @bind="selectedItem.IsRequired" @bind:after="MarkDirty" /> Required</label>
+                        @if (SelectedFieldIssues.Count > 0)
+                        {
+                            <ul class="property-errors">
                             @foreach (var issue in SelectedFieldIssues)
                             {
                                 <li>@issue.Message</li>
                             }
-                        </ul>
+                            </ul>
+                        }
                     }
-                }
+                </div>
+                <div class="translation-properties">
+                    <h2>Languages</h2>
+                    <LanguageSelector Languages="Definition.Localization.Languages" LanguageCodes="Definition.LanguageCodes"
+                                      DefaultLanguageCode="Definition.Localization.DefaultLanguageCode" Changed="MarkDirty" TestId="form-languages" />
+                    <h3>Form title translations</h3>
+                    <LocalizedTextEditor Definition="Definition.Title" Languages="Definition.Localization.Languages"
+                                         LanguageCodes="Definition.LanguageCodes" Changed="MarkDirty" />
+                    <details>
+                        <summary>Add language</summary>
+                        <div class="language-add">
+                            <input aria-label="Form language code" placeholder="ar" @bind="newLanguageCode" />
+                            <input aria-label="Form language name" placeholder="العربية" @bind="newLanguageName" />
+                            <label class="checkbox"><input type="checkbox" @bind="newLanguageIsRtl" /> RTL</label>
+                            <button data-testid="add-form-language" class="secondary" @onclick="AddLanguage">Add language</button>
+                        </div>
+                    </details>
+                    @if (selectedItem is not null)
+                    {
+                        <h3>@selectedItem.Label · label translations</h3>
+                        <LocalizedTextEditor Definition="selectedItem.LabelResource" Languages="Definition.Localization.Languages"
+                                             LanguageCodes="Definition.LanguageCodes" Changed="MarkDirty" />
+                        <h3>Placeholder translations</h3>
+                        <LocalizedTextEditor Definition="selectedItem.PlaceholderResource" Languages="Definition.Localization.Languages"
+                                             LanguageCodes="Definition.LanguageCodes" Changed="MarkDirty" />
+                    }
+                </div>
             </aside>
         </div>
     }
+
+    <div class="wizard-actions">
+        <button class="secondary" disabled="@(currentStep == 0)" @onclick="PreviousStep">Back</button>
+        <span>Step @(currentStep + 1) of @WizardSteps.Count</span>
+        @if (currentStep < WizardSteps.Count - 1)
+        {
+            <button data-testid="form-next" class="primary" @onclick="NextStep">Continue</button>
+        }
+        else
+        {
+            <button class="primary" @onclick="SaveAsync">Save and finish</button>
+        }
+    </div>
 </div>
 
 @code {
@@ -167,6 +188,9 @@
     private string newLanguageCode = string.Empty;
     private string newLanguageName = string.Empty;
     private bool newLanguageIsRtl;
+    private int currentStep;
+    private int lastDesignerStep;
+    private static readonly IReadOnlyList<string> WizardSteps = ["Fields", "Settings", "Translations", "Preview"];
 
     private FormFieldDefinition? SelectedField =>
         Definition.Fields.FirstOrDefault(item => item.Id == selectedFieldId);
@@ -319,7 +343,21 @@
 
     private void ToggleJson() => showJson = !showJson;
 
-    private void TogglePreview() => isPreview = !isPreview;
+    private void SetStep(int step)
+    {
+        currentStep = Math.Clamp(step, 0, WizardSteps.Count - 1);
+        isPreview = currentStep == WizardSteps.Count - 1;
+        if (!isPreview)
+        {
+            lastDesignerStep = currentStep;
+        }
+    }
+
+    private void TogglePreview() => SetStep(isPreview ? lastDesignerStep : WizardSteps.Count - 1);
+
+    private void PreviousStep() => SetStep(currentStep - 1);
+
+    private void NextStep() => SetStep(currentStep + 1);
 
     private void AddLanguage()
     {
