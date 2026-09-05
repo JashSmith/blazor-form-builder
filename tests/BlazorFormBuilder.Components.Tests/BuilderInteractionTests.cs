@@ -106,6 +106,7 @@ public sealed class BuilderInteractionTests : BunitContext
         component.Find("[data-testid='chrome-next']").Click();
         component.Find("[data-testid='add-menu-item']").Click();
         component.Find("[data-testid='save-chrome']").Click();
+        component.Find("[data-testid='chrome-step-0']").Click();
 
         Assert.Equal(2, component.FindAll(".definition-list > button").Count);
         Assert.Equal(2, workspaceStore.SavedWorkspace?.Headers.Count);
@@ -119,7 +120,8 @@ public sealed class BuilderInteractionTests : BunitContext
 
         component.Find("[data-testid='chrome-step-2']").Click();
         component.Find("[data-testid='footer-languages'] input:not([disabled])").Change(true);
-        component.Find(".localized-editor label[data-language='fa'] input").Input("تمام حقوق محفوظ است");
+        component.Find("select[aria-label='Preview language']").Change("fa");
+        component.FindAll(".localized-editor input[dir='rtl']").First().Input("تمام حقوق محفوظ است");
 
         var preview = component.Find("[data-testid='chrome-preview']");
         Assert.Contains("dir=\"rtl\"", preview.OuterHtml, StringComparison.Ordinal);
