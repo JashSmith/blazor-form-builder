@@ -2,10 +2,11 @@
     <label>Translation key
         <input value="@Definition.Key" @oninput="SetKey" placeholder="example.section.title" />
     </label>
-    @foreach (var language in SelectedLanguages)
+    @foreach (var language in Languages)
     {
-        <label data-language="@language.Code">
-            <span>@language.DisplayName <code>@language.Code</code> · @(language.Direction == ContentDirection.RightToLeft ? "RTL" : "LTR")</span>
+        var isPublished = LanguageCodes.Contains(language.Code, StringComparer.OrdinalIgnoreCase);
+        <label data-language="@language.Code" data-published="@isPublished.ToString().ToLowerInvariant()">
+            <span>@language.DisplayName <code>@language.Code</code> · @(language.Direction == ContentDirection.RightToLeft ? "RTL" : "LTR") · @(isPublished ? "Published" : "Draft")</span>
             <input aria-label="@($"{language.DisplayName} translation")"
                    dir="@(language.Direction == ContentDirection.RightToLeft ? "rtl" : "ltr")"
                    value="@ValueFor(language.Code)"
@@ -19,9 +20,6 @@
     [Parameter, EditorRequired] public required IReadOnlyList<LanguageDefinition> Languages { get; set; }
     [Parameter, EditorRequired] public required IReadOnlyList<string> LanguageCodes { get; set; }
     [Parameter] public EventCallback Changed { get; set; }
-
-    private IEnumerable<LanguageDefinition> SelectedLanguages => Languages.Where(language =>
-        LanguageCodes.Contains(language.Code, StringComparer.OrdinalIgnoreCase));
 
     private string ValueFor(string code) => Definition.Values.TryGetValue(code, out var value) ? value : string.Empty;
 
