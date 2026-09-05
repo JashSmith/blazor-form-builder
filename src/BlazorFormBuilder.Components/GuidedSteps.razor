@@ -1,0 +1,21 @@
+<nav class="guided-steps" aria-label="Builder steps">
+    @for (var index = 0; index < Steps.Count; index++)
+    {
+        var stepIndex = index;
+        <button type="button"
+                data-testid="@($"{TestId}-{stepIndex}")"
+                class="@(stepIndex == CurrentStep ? "active" : stepIndex < CurrentStep ? "complete" : null)"
+                aria-current="@(stepIndex == CurrentStep ? "step" : null)"
+                @onclick="() => StepChanged.InvokeAsync(stepIndex)">
+            <span>@(stepIndex + 1)</span>
+            <strong>@Steps[stepIndex]</strong>
+        </button>
+    }
+</nav>
+
+@code {
+    [Parameter, EditorRequired] public required IReadOnlyList<string> Steps { get; set; }
+    [Parameter] public int CurrentStep { get; set; }
+    [Parameter] public string TestId { get; set; } = "builder-step";
+    [Parameter] public EventCallback<int> StepChanged { get; set; }
+}

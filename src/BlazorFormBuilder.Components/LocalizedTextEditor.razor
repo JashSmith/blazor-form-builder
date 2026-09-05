@@ -1,0 +1,37 @@
+<div class="localized-editor">
+    <label>Translation key
+        <input value="@Definition.Key" @oninput="SetKey" placeholder="example.section.title" />
+    </label>
+    @foreach (var language in Languages)
+    {
+        var isPublished = LanguageCodes.Contains(language.Code, StringComparer.OrdinalIgnoreCase);
+        <label data-language="@language.Code" data-published="@isPublished.ToString().ToLowerInvariant()">
+            <span>@language.DisplayName <code>@language.Code</code> · @(language.Direction == ContentDirection.RightToLeft ? "RTL" : "LTR") · @(isPublished ? "Published" : "Draft")</span>
+            <input aria-label="@($"{language.DisplayName} translation")"
+                   dir="@(language.Direction == ContentDirection.RightToLeft ? "rtl" : "ltr")"
+                   value="@ValueFor(language.Code)"
+                   @oninput="args => SetValue(language.Code, args.Value?.ToString())" />
+        </label>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public required LocalizedTextDefinition Definition { get; set; }
+    [Parameter, EditorRequired] public required IReadOnlyList<LanguageDefinition> Languages { get; set; }
+    [Parameter, EditorRequired] public required IReadOnlyList<string> LanguageCodes { get; set; }
+    [Parameter] public EventCallback Changed { get; set; }
+
+    private string ValueFor(string code) => Definition.Values.TryGetValue(code, out var value) ? value : string.Empty;
+
+    private async Task SetKey(ChangeEventArgs args)
+    {
+        Definition.Key = args.Value?.ToString()?.Trim() ?? string.Empty;
+        await Changed.InvokeAsync();
+    }
+
+    private async Task SetValue(string code, string? value)
+    {
+        Definition.Values[code] = value ?? string.Empty;
+        await Changed.InvokeAsync();
+    }
+}

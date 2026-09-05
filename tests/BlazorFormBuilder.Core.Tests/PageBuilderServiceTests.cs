@@ -13,6 +13,10 @@ public sealed class PageBuilderServiceTests
         var page = Assert.Single(workspace.Pages);
         Assert.Equal(page.Id, workspace.ActivePageId);
         Assert.Equal(3, page.Boxes.Count);
+        Assert.Single(workspace.Headers);
+        Assert.Single(workspace.Footers);
+        Assert.Equal(workspace.Headers[0].Id, page.HeaderId);
+        Assert.Equal(workspace.Footers[0].Id, page.FooterId);
     }
 
     [Fact]
@@ -80,5 +84,33 @@ public sealed class PageBuilderServiceTests
 
         Assert.Equal(first.Id, page.Boxes[1].Id);
         Assert.Equal(third.Id, page.Boxes[2].Id);
+    }
+
+    [Fact]
+    public void PagesCanUseDifferentReusableHeadersAndFooters()
+    {
+        var workspace = PageBuilderService.CreateWorkspace("Portal");
+        var secondHeader = PageBuilderService.AddHeader(workspace, "Account header");
+        var secondFooter = PageBuilderService.AddFooter(workspace, "Minimal footer");
+        var page = PageBuilderService.AddPage(workspace, "Account");
+
+        page.HeaderId = secondHeader.Id;
+        page.FooterId = secondFooter.Id;
+
+        Assert.Equal(secondHeader.Id, page.HeaderId);
+        Assert.Equal(secondFooter.Id, page.FooterId);
+        Assert.NotEqual(workspace.Pages[0].HeaderId, page.HeaderId);
+    }
+
+    [Fact]
+    public void LocalizedTextResolvesRtlLanguageValue()
+    {
+        var workspace = PageBuilderService.CreateWorkspace("Portal");
+        var page = Assert.Single(workspace.Pages);
+        PageBuilderService.ToggleLanguage(page.LanguageCodes, "fa", true, "en");
+        page.Title.Values["fa"] = "خانه";
+
+        Assert.Equal("خانه", page.Title.Resolve("fa", page.Name));
+        Assert.Equal(ContentDirection.RightToLeft, workspace.Localization.Languages.Single(item => item.Code == "fa").Direction);
     }
 }

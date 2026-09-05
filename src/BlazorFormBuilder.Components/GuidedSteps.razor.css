@@ -1,0 +1,10 @@
+.guided-steps { display: grid; grid-template-columns: repeat(var(--step-count, 4), minmax(0, 1fr)); gap: .5rem; margin: 0 0 1rem; padding: .55rem; background: #fff; border: 1px solid #e4e7ec; border-radius: 12px; }
+.guided-steps button { display: flex; min-width: 0; align-items: center; gap: .5rem; padding: .55rem .7rem; color: #667085; background: transparent; border: 0; border-radius: 8px; cursor: pointer; text-align: start; }
+.guided-steps button:hover { background: #f9fafb; }
+.guided-steps button.active { color: #5925dc; background: #f4ebff; }
+.guided-steps button.complete { color: #067647; }
+.guided-steps span { display: grid; width: 1.55rem; height: 1.55rem; flex: 0 0 auto; place-items: center; color: #475467; background: #eaecf0; border-radius: 999px; font-size: .7rem; }
+.guided-steps .active span { color: #fff; background: #7f56d9; }
+.guided-steps .complete span { color: #fff; background: #12b76a; }
+.guided-steps strong { overflow: hidden; font-size: .75rem; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 700px) { .guided-steps { grid-template-columns: repeat(2, 1fr); } }
