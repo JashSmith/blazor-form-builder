@@ -5,7 +5,7 @@
         var isDefault = string.Equals(language.Code, DefaultLanguageCode, StringComparison.OrdinalIgnoreCase);
         <label>
             <input type="checkbox" checked="@selected" disabled="@isDefault"
-                   @onchange="args => Toggle(language.Code, args.Value is true)" />
+                   @onchange="args => Toggle(language.Code, IsChecked(args.Value))" />
             <span>@language.DisplayName <small>@language.Code · @(language.Direction == ContentDirection.RightToLeft ? "RTL" : "LTR")</small></span>
         </label>
     }
@@ -23,4 +23,8 @@
         PageBuilderService.ToggleLanguage(LanguageCodes, code, enabled, DefaultLanguageCode);
         await Changed.InvokeAsync();
     }
+
+    private static bool IsChecked(object? value) => value is bool enabled
+        ? enabled
+        : bool.TryParse(value?.ToString(), out var parsed) && parsed;
 }

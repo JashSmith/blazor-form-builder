@@ -130,7 +130,7 @@
                         @foreach (var widget in Enum.GetValues<FooterWidgetKind>())
                         {
                             <label class="toggle"><input type="checkbox" checked="@footer.Widgets.Contains(widget)"
-                                @onchange="args => ToggleWidget(widget, args.Value is true)" /> @widget</label>
+                                @onchange="args => ToggleWidget(widget, IsChecked(args.Value))" /> @widget</label>
                         }
                     </div>
                     <h3>Footer links</h3>
@@ -277,6 +277,10 @@
         if (enabled) CurrentFooter.Widgets.Add(widget); else CurrentFooter.Widgets.Remove(widget);
         MarkDirty();
     }
+
+    private static bool IsChecked(object? value) => value is bool enabled
+        ? enabled
+        : bool.TryParse(value?.ToString(), out var parsed) && parsed;
 
     private void ChangePreviewLanguage(ChangeEventArgs args) => previewLanguageCode = args.Value?.ToString() ?? Workspace.Localization.DefaultLanguageCode;
 
