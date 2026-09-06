@@ -1,13 +1,14 @@
 using System.Text.Json;
+using BlazorFormBuilder.App.Auth;
 using BlazorFormBuilder.Core.Models;
 using BlazorFormBuilder.Core.Storage;
 using Microsoft.JSInterop;
 
 namespace BlazorFormBuilder.App.Storage;
 
-public sealed class BrowserFormDefinitionStore(IJSRuntime javaScript) : IFormDefinitionStore
+public sealed class BrowserFormDefinitionStore(IJSRuntime javaScript, TenantSessionState tenantSession) : IFormDefinitionStore
 {
-    private const string StorageKey = "blazor-form-builder:draft";
+    private const string BaseStorageKey = "blazor-form-builder:draft";
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
     public async ValueTask<FormDefinition?> LoadAsync(CancellationToken cancellationToken = default)
@@ -15,7 +16,7 @@ public sealed class BrowserFormDefinitionStore(IJSRuntime javaScript) : IFormDef
         var json = await javaScript.InvokeAsync<string?>(
             "blazorFormBuilderStorage.get",
             cancellationToken,
-            StorageKey);
+            tenantSession.StorageKey(BaseStorageKey));
 
         return string.IsNullOrWhiteSpace(json)
             ? null
@@ -32,7 +33,7 @@ public sealed class BrowserFormDefinitionStore(IJSRuntime javaScript) : IFormDef
         await javaScript.InvokeVoidAsync(
             "blazorFormBuilderStorage.set",
             cancellationToken,
-            StorageKey,
+            tenantSession.StorageKey(BaseStorageKey),
             json);
     }
 }

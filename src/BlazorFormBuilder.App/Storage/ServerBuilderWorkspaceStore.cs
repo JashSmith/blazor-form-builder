@@ -12,6 +12,7 @@ public sealed class ServerBuilderWorkspaceStore(HttpClient httpClient) : IBuilde
 
     public async ValueTask<BuilderWorkspaceDefinition?> LoadAsync(CancellationToken cancellationToken = default)
     {
+        entityTag = null;
         using var response = await httpClient.GetAsync("api/workspaces/current", cancellationToken);
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
@@ -38,6 +39,11 @@ public sealed class ServerBuilderWorkspaceStore(HttpClient httpClient) : IBuilde
         if (response.StatusCode == HttpStatusCode.Conflict)
         {
             throw new OptimisticConcurrencyException("Workspace changed on the server. Reload before saving again.");
+        }
+
+        if (response.StatusCode == HttpStatusCode.Forbidden)
+        {
+            throw new AuthorizationDeniedException("Viewer access is read-only. Ask an owner to change your role.");
         }
 
         response.EnsureSuccessStatusCode();

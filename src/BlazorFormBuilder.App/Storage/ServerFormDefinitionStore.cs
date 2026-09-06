@@ -12,6 +12,7 @@ public sealed class ServerFormDefinitionStore(HttpClient httpClient) : IFormDefi
 
     public async ValueTask<FormDefinition?> LoadAsync(CancellationToken cancellationToken = default)
     {
+        entityTag = null;
         using var response = await httpClient.GetAsync("api/forms/current", cancellationToken);
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
@@ -38,6 +39,11 @@ public sealed class ServerFormDefinitionStore(HttpClient httpClient) : IFormDefi
         if (response.StatusCode == HttpStatusCode.Conflict)
         {
             throw new OptimisticConcurrencyException("Form changed on the server. Reload before saving again.");
+        }
+
+        if (response.StatusCode == HttpStatusCode.Forbidden)
+        {
+            throw new AuthorizationDeniedException("Viewer access is read-only. Ask an owner to change your role.");
         }
 
         response.EnsureSuccessStatusCode();

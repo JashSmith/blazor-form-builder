@@ -1,5 +1,6 @@
 using BlazorFormBuilder.App;
 using BlazorFormBuilder.App.Storage;
+using BlazorFormBuilder.App.Auth;
 using BlazorFormBuilder.Core.Storage;
 using BlazorFormBuilder.Plugins.Standard;
 using Microsoft.AspNetCore.Components.Web;
@@ -10,6 +11,9 @@ builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 builder.Services.AddStandardFormFieldPlugins();
 builder.Services.AddScoped(_ => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
+builder.Services.AddScoped<AuthenticationClient>();
+builder.Services.AddScoped<TenantAdministrationClient>();
+builder.Services.AddScoped<TenantSessionState>();
 builder.Services.AddScoped<BrowserFormDefinitionStore>();
 builder.Services.AddScoped<BrowserBuilderWorkspaceStore>();
 builder.Services.AddScoped<ServerFormDefinitionStore>();

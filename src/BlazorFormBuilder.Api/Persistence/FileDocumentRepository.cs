@@ -12,13 +12,14 @@ public sealed class FileDocumentRepository<TDocument>(string directory, Func<TDo
     private readonly SemaphoreSlim gate = new(1, 1);
 
     public async ValueTask<StoredDocument<TDocument>?> GetAsync(
+        Guid tenantId,
         Guid id,
         CancellationToken cancellationToken = default)
     {
         await gate.WaitAsync(cancellationToken);
         try
         {
-            return await ReadAsync(PathFor(id), cancellationToken);
+            return await ReadAsync(PathFor(tenantId, id), cancellationToken);
         }
         finally
         {
@@ -27,18 +28,20 @@ public sealed class FileDocumentRepository<TDocument>(string directory, Func<TDo
     }
 
     public async ValueTask<StoredDocument<TDocument>?> GetLatestAsync(
+        Guid tenantId,
         CancellationToken cancellationToken = default)
     {
         await gate.WaitAsync(cancellationToken);
         try
         {
-            if (!Directory.Exists(directory))
+            var tenantDirectory = TenantDirectory(tenantId);
+            if (!Directory.Exists(tenantDirectory))
             {
                 return null;
             }
 
             StoredDocument<TDocument>? latest = null;
-            foreach (var path in Directory.EnumerateFiles(directory, "*.json", SearchOption.TopDirectoryOnly))
+            foreach (var path in Directory.EnumerateFiles(tenantDirectory, "*.json", SearchOption.TopDirectoryOnly))
             {
                 var candidate = await ReadAsync(path, cancellationToken);
                 if (candidate is not null && (latest is null || candidate.SavedAtUtc > latest.SavedAtUtc))
@@ -56,6 +59,7 @@ public sealed class FileDocumentRepository<TDocument>(string directory, Func<TDo
     }
 
     public async ValueTask<StoredDocument<TDocument>> SaveAsync(
+        Guid tenantId,
         TDocument document,
         long? expectedRevision,
         CancellationToken cancellationToken = default)
@@ -64,9 +68,9 @@ public sealed class FileDocumentRepository<TDocument>(string directory, Func<TDo
         await gate.WaitAsync(cancellationToken);
         try
         {
-            Directory.CreateDirectory(directory);
+            Directory.CreateDirectory(TenantDirectory(tenantId));
             var id = getId(document);
-            var path = PathFor(id);
+            var path = PathFor(tenantId, id);
             var current = await ReadAsync(path, cancellationToken);
 
             if (current is not null && expectedRevision != current.Revision)
@@ -95,7 +99,9 @@ public sealed class FileDocumentRepository<TDocument>(string directory, Func<TDo
         }
     }
 
-    private string PathFor(Guid id) => Path.Combine(directory, $"{id:N}.json");
+    private string TenantDirectory(Guid tenantId) => Path.Combine(directory, tenantId.ToString("N"));
+
+    private string PathFor(Guid tenantId, Guid id) => Path.Combine(TenantDirectory(tenantId), $"{id:N}.json");
 
     private static async ValueTask<StoredDocument<TDocument>?> ReadAsync(
         string path,
