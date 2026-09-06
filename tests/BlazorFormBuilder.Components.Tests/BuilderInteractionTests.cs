@@ -190,7 +190,7 @@ public sealed class BuilderInteractionTests : BunitContext
 
         component.WaitForAssertion(() =>
             Assert.Contains("Published immutable version 1", component.Markup, StringComparison.Ordinal));
-        Assert.Single(publicationStore.Publications.Where(item => item.FormId == formStore.SavedForm!.Id));
+        Assert.Single(publicationStore.Publications, item => item.FormId == formStore.SavedForm!.Id);
     }
 
     [Fact]
