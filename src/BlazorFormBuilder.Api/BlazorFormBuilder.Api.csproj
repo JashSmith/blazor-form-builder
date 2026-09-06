@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" />
+    <ProjectReference Include="../BlazorFormBuilder.App/BlazorFormBuilder.App.csproj" />
+    <ProjectReference Include="../BlazorFormBuilder.Core/BlazorFormBuilder.Core.csproj" />
+  </ItemGroup>
+</Project>
