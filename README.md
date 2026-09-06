@@ -60,6 +60,8 @@ dotnet restore BlazorFormBuilder.slnx
 dotnet run --project src/BlazorFormBuilder.Api
 ```
 
+Open the HTTPS URL printed by ASP.NET Core, select **Create workspace**, and enter an organization name, owner email, and password of at least eight characters. Later sign-ins use the generated tenant slug (for example, `Acme Portal` becomes `acme-portal`).
+
 Run tests with:
 
 ```bash
@@ -80,8 +82,10 @@ After this repository bootstrap, create `develop` from `main` and open subsequen
 
 Open **Form builder**, drag fields from the toolbox onto the canvas, reorder them by dragging, configure them in the property panel, save the valid definition, then use **Preview form** to enter values and exercise each plugin's runtime validation.
 
-The hosted app saves Workspace and Form documents through `/api/workspaces` and `/api/forms`. Responses carry an `ETag`, and stale updates receive `409 Conflict` instead of overwriting a newer edit. A browser-local snapshot remains available when the API is offline or the standalone WASM project is used.
+The hosted app starts with a sign-in/create-workspace screen. The first account creates a tenant and becomes its owner. Authentication uses a protected HttpOnly cookie; passwords are stored as one-way hashes, and data-protection keys persist across restarts.
+
+Authenticated Workspace and Form requests are scoped from the tenant claim—not a client-supplied tenant id—then saved through `/api/workspaces` and `/api/forms`. Responses carry an `ETag`, and stale updates receive `409 Conflict` instead of overwriting a newer edit. Browser snapshots are also namespaced by tenant id, so accounts sharing a browser cannot load each other's local fallback.
 
 ## Next slice
 
-Add authentication and tenant ownership, then connect published form versions to BPMN user tasks.
+Add tenant invitations and roles, then connect immutable published form versions to BPMN user tasks.

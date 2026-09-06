@@ -12,6 +12,7 @@ public sealed class ServerFormDefinitionStore(HttpClient httpClient) : IFormDefi
 
     public async ValueTask<FormDefinition?> LoadAsync(CancellationToken cancellationToken = default)
     {
+        entityTag = null;
         using var response = await httpClient.GetAsync("api/forms/current", cancellationToken);
         if (response.StatusCode == HttpStatusCode.NotFound)
         {

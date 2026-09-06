@@ -8,3 +8,4 @@ TestResults/
 coverage/
 artifacts/
 wwwroot/_framework/
+src/BlazorFormBuilder.Api/App_Data/
