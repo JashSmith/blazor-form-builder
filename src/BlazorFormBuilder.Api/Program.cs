@@ -1,5 +1,11 @@
+using System.Security.Claims;
+using BlazorFormBuilder.Api.Auth;
 using BlazorFormBuilder.Api.Persistence;
+using BlazorFormBuilder.Core.Auth;
 using BlazorFormBuilder.Core.Models;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Primitives;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,12 +18,39 @@ builder.Services.AddSingleton(new FileDocumentRepository<BuilderWorkspaceDefinit
 builder.Services.AddSingleton(new FileDocumentRepository<FormDefinition>(
     Path.Combine(dataRoot, "forms"),
     document => document.Id));
+builder.Services.AddSingleton(new FileTenantUserRepository(Path.Combine(dataRoot, "identity", "users.json")));
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataRoot, "keys")))
+    .SetApplicationName("BlazorFormBuilder");
+builder.Services
+    .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.Cookie.Name = "BlazorFormBuilder.Session";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Strict;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        options.Events.OnRedirectToLogin = context =>
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return Task.CompletedTask;
+        };
+        options.Events.OnRedirectToAccessDenied = context =>
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return Task.CompletedTask;
+        };
+    });
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 app.UseHttpsRedirection();
 app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
+app.UseAuthentication();
+app.UseAuthorization();
 
+MapAuthenticationEndpoints(app);
 MapWorkspaceEndpoints(app);
 MapFormEndpoints(app);
 
@@ -26,13 +59,19 @@ app.Run();
 
 static void MapWorkspaceEndpoints(WebApplication app)
 {
-    var group = app.MapGroup("/api/workspaces");
+    var group = app.MapGroup("/api/workspaces").RequireAuthorization();
     group.MapGet("/current", async Task<IResult> (
         HttpContext context,
         FileDocumentRepository<BuilderWorkspaceDefinition> repository,
         CancellationToken cancellationToken) =>
     {
-        var stored = await repository.GetLatestAsync(cancellationToken);
+        var tenantId = GetTenantId(context.User);
+        if (tenantId is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        var stored = await repository.GetLatestAsync(tenantId.Value, cancellationToken);
         return stored is null ? Results.NotFound() : VersionedJson(context, stored);
     });
 
@@ -42,7 +81,13 @@ static void MapWorkspaceEndpoints(WebApplication app)
         FileDocumentRepository<BuilderWorkspaceDefinition> repository,
         CancellationToken cancellationToken) =>
     {
-        var stored = await repository.GetAsync(id, cancellationToken);
+        var tenantId = GetTenantId(context.User);
+        if (tenantId is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        var stored = await repository.GetAsync(tenantId.Value, id, cancellationToken);
         return stored is null ? Results.NotFound() : VersionedJson(context, stored);
     });
 
@@ -53,6 +98,12 @@ static void MapWorkspaceEndpoints(WebApplication app)
         FileDocumentRepository<BuilderWorkspaceDefinition> repository,
         CancellationToken cancellationToken) =>
     {
+        var tenantId = GetTenantId(context.User);
+        if (tenantId is null)
+        {
+            return Results.Unauthorized();
+        }
+
         if (id != document.Id)
         {
             return Results.BadRequest(new { error = "Route id must match document id." });
@@ -61,7 +112,7 @@ static void MapWorkspaceEndpoints(WebApplication app)
         var expectedRevision = ParseRevision(context.Request.Headers.IfMatch);
         try
         {
-            var stored = await repository.SaveAsync(document, expectedRevision, cancellationToken);
+            var stored = await repository.SaveAsync(tenantId.Value, document, expectedRevision, cancellationToken);
             return VersionedJson(
                 context,
                 stored,
@@ -80,13 +131,19 @@ static void MapWorkspaceEndpoints(WebApplication app)
 
 static void MapFormEndpoints(WebApplication app)
 {
-    var group = app.MapGroup("/api/forms");
+    var group = app.MapGroup("/api/forms").RequireAuthorization();
     group.MapGet("/current", async Task<IResult> (
         HttpContext context,
         FileDocumentRepository<FormDefinition> repository,
         CancellationToken cancellationToken) =>
     {
-        var stored = await repository.GetLatestAsync(cancellationToken);
+        var tenantId = GetTenantId(context.User);
+        if (tenantId is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        var stored = await repository.GetLatestAsync(tenantId.Value, cancellationToken);
         return stored is null ? Results.NotFound() : VersionedJson(context, stored);
     });
 
@@ -96,7 +153,13 @@ static void MapFormEndpoints(WebApplication app)
         FileDocumentRepository<FormDefinition> repository,
         CancellationToken cancellationToken) =>
     {
-        var stored = await repository.GetAsync(id, cancellationToken);
+        var tenantId = GetTenantId(context.User);
+        if (tenantId is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        var stored = await repository.GetAsync(tenantId.Value, id, cancellationToken);
         return stored is null ? Results.NotFound() : VersionedJson(context, stored);
     });
 
@@ -107,6 +170,12 @@ static void MapFormEndpoints(WebApplication app)
         FileDocumentRepository<FormDefinition> repository,
         CancellationToken cancellationToken) =>
     {
+        var tenantId = GetTenantId(context.User);
+        if (tenantId is null)
+        {
+            return Results.Unauthorized();
+        }
+
         if (id != document.Id)
         {
             return Results.BadRequest(new { error = "Route id must match document id." });
@@ -115,7 +184,7 @@ static void MapFormEndpoints(WebApplication app)
         var expectedRevision = ParseRevision(context.Request.Headers.IfMatch);
         try
         {
-            var stored = await repository.SaveAsync(document, expectedRevision, cancellationToken);
+            var stored = await repository.SaveAsync(tenantId.Value, document, expectedRevision, cancellationToken);
             return VersionedJson(
                 context,
                 stored,
@@ -131,6 +200,103 @@ static void MapFormEndpoints(WebApplication app)
         }
     });
 }
+
+static void MapAuthenticationEndpoints(WebApplication app)
+{
+    var group = app.MapGroup("/api/auth");
+    group.MapPost("/register", async Task<IResult> (
+        RegisterTenantRequest request,
+        HttpContext context,
+        FileTenantUserRepository repository,
+        CancellationToken cancellationToken) =>
+    {
+        if (string.IsNullOrWhiteSpace(request.TenantName) ||
+            string.IsNullOrWhiteSpace(request.Email) ||
+            string.IsNullOrWhiteSpace(request.Password) ||
+            request.Password.Length < 8)
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["registration"] = ["Tenant, email, and a password of at least 8 characters are required."]
+            });
+        }
+
+        var user = await repository.RegisterTenantAsync(
+            request.TenantName,
+            request.Email,
+            request.Password,
+            cancellationToken);
+        if (user is null)
+        {
+            return Results.Conflict(new { error = "Tenant or email already exists." });
+        }
+
+        await context.SignInAsync(CreatePrincipal(user));
+        return Results.Ok(ToSession(user));
+    }).AllowAnonymous();
+
+    group.MapPost("/login", async Task<IResult> (
+        LoginRequest request,
+        HttpContext context,
+        FileTenantUserRepository repository,
+        CancellationToken cancellationToken) =>
+    {
+        if (string.IsNullOrWhiteSpace(request.TenantSlug) ||
+            string.IsNullOrWhiteSpace(request.Email) ||
+            string.IsNullOrWhiteSpace(request.Password))
+        {
+            return Results.Unauthorized();
+        }
+
+        var user = await repository.ValidateCredentialsAsync(
+            request.TenantSlug,
+            request.Email,
+            request.Password,
+            cancellationToken);
+        if (user is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        await context.SignInAsync(CreatePrincipal(user));
+        return Results.Ok(ToSession(user));
+    }).AllowAnonymous();
+
+    group.MapGet("/session", (ClaimsPrincipal user) =>
+    {
+        var userId = Guid.Parse(user.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var tenantId = Guid.Parse(user.FindFirstValue("tenant_id")!);
+        return Results.Ok(new SessionInfo(
+            userId,
+            tenantId,
+            user.FindFirstValue("tenant_slug")!,
+            user.FindFirstValue(ClaimTypes.Email)!));
+    }).RequireAuthorization();
+
+    group.MapPost("/logout", async (HttpContext context) =>
+    {
+        await context.SignOutAsync();
+        return Results.NoContent();
+    }).RequireAuthorization();
+}
+
+static ClaimsPrincipal CreatePrincipal(TenantUserRecord user)
+{
+    var identity = new ClaimsIdentity(
+    [
+        new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+        new Claim(ClaimTypes.Email, user.Email),
+        new Claim("tenant_id", user.TenantId.ToString()),
+        new Claim("tenant_slug", user.TenantSlug)
+    ], CookieAuthenticationDefaults.AuthenticationScheme);
+    return new ClaimsPrincipal(identity);
+}
+
+static SessionInfo ToSession(TenantUserRecord user) =>
+    new(user.Id, user.TenantId, user.TenantSlug, user.Email);
+
+static Guid? GetTenantId(ClaimsPrincipal user) =>
+    Guid.TryParse(user.FindFirstValue("tenant_id"), out var tenantId) ? tenantId : null;
 
 static IResult VersionedJson<TDocument>(
     HttpContext context,

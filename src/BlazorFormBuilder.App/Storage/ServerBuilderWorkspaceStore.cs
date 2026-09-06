@@ -12,6 +12,7 @@ public sealed class ServerBuilderWorkspaceStore(HttpClient httpClient) : IBuilde
 
     public async ValueTask<BuilderWorkspaceDefinition?> LoadAsync(CancellationToken cancellationToken = default)
     {
+        entityTag = null;
         using var response = await httpClient.GetAsync("api/workspaces/current", cancellationToken);
         if (response.StatusCode == HttpStatusCode.NotFound)
         {

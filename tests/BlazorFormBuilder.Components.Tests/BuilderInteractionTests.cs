@@ -28,7 +28,8 @@ public sealed class BuilderInteractionTests : BunitContext
         Assert.Contains("Form designer", component.Markup, StringComparison.Ordinal);
 
         component.Find("[data-testid='open-page-builder']").Click();
-        Assert.Contains("Page builder", component.Markup, StringComparison.OrdinalIgnoreCase);
+        Assert.True(component.Find("[data-testid='open-page-builder']").ClassList.Contains("active"));
+        Assert.NotNull(component.FindComponent<PageDesigner>());
 
         component.Find("[data-testid='open-header-builder']").Click();
         Assert.Contains("HEADER &amp; MENU LIBRARY", component.Markup, StringComparison.Ordinal);

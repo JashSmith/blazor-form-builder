@@ -1,0 +1,144 @@
+@inject AuthenticationClient Authentication
+@inject TenantSessionState TenantSession
+
+@if (isLoading)
+{
+    <main class="auth-loading">Checking your session…</main>
+}
+else if (session is null)
+{
+    <main class="auth-shell">
+        <section class="auth-intro">
+            <span class="brand-mark">BF</span>
+            <p class="eyebrow">BLAZOR FORM BUILDER</p>
+            <h1>Build forms and pages in one secure workspace.</h1>
+            <p>Every organization gets an isolated tenant. Your drafts, reusable headers, footers, and forms stay inside that workspace.</p>
+            <ul>
+                <li>Guided multilingual builders</li>
+                <li>Responsive RTL/LTR previews</li>
+                <li>Server revisions with conflict protection</li>
+            </ul>
+        </section>
+
+        <section class="auth-card">
+            <div class="auth-tabs">
+                <button data-testid="show-login" class="@(!isRegistering ? "active" : null)" @onclick="() => SetMode(false)">Sign in</button>
+                <button data-testid="show-register" class="@(isRegistering ? "active" : null)" @onclick="() => SetMode(true)">Create workspace</button>
+            </div>
+
+            <h2>@(isRegistering ? "Create your tenant" : "Welcome back")</h2>
+            <p>@(isRegistering ? "The first account becomes the tenant owner." : "Enter your tenant slug and account details.")</p>
+
+            @if (isRegistering)
+            {
+                <label>Organization name<input data-testid="tenant-name" autocomplete="organization" @bind="tenantName" /></label>
+            }
+            else
+            {
+                <label>Tenant slug<input data-testid="tenant-slug" autocomplete="organization" @bind="tenantSlug" /></label>
+            }
+            <label>Email<input data-testid="auth-email" type="email" autocomplete="email" @bind="email" /></label>
+            <label>Password<input data-testid="auth-password" type="password" autocomplete="@(isRegistering ? "new-password" : "current-password")" @bind="password" /></label>
+
+            @if (!string.IsNullOrWhiteSpace(errorMessage))
+            {
+                <div class="auth-error" role="alert">@errorMessage</div>
+            }
+
+            <button data-testid="submit-auth" class="submit" disabled="@isSubmitting" @onclick="SubmitAsync">
+                @(isSubmitting ? "Please wait…" : isRegistering ? "Create workspace" : "Sign in")
+            </button>
+        </section>
+    </main>
+}
+else
+{
+    <header class="session-bar">
+        <div><strong>@session.TenantSlug</strong><span>@session.Email</span></div>
+        <button data-testid="logout" @onclick="LogoutAsync">Sign out</button>
+    </header>
+    <BuilderWorkspace @key="session.TenantId" />
+}
+
+@code {
+    private SessionInfo? session;
+    private bool isLoading = true;
+    private bool isRegistering;
+    private bool isSubmitting;
+    private string tenantName = string.Empty;
+    private string tenantSlug = string.Empty;
+    private string email = string.Empty;
+    private string password = string.Empty;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            session = await Authentication.GetSessionAsync();
+            if (session is not null)
+            {
+                TenantSession.SetTenant(session.TenantId);
+            }
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "The authentication server is unavailable.";
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            errorMessage = "Run the hosted API project to sign in.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void SetMode(bool register)
+    {
+        isRegistering = register;
+        errorMessage = null;
+    }
+
+    private async Task SubmitAsync()
+    {
+        errorMessage = null;
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password) ||
+            (isRegistering ? string.IsNullOrWhiteSpace(tenantName) : string.IsNullOrWhiteSpace(tenantSlug)))
+        {
+            errorMessage = "Complete every field before continuing.";
+            return;
+        }
+
+        isSubmitting = true;
+        try
+        {
+            var result = isRegistering
+                ? await Authentication.RegisterAsync(new(tenantName, email, password))
+                : await Authentication.LoginAsync(new(tenantSlug, email, password));
+            session = result.Session;
+            errorMessage = result.Error;
+            if (session is not null)
+            {
+                TenantSession.SetTenant(session.TenantId);
+            }
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "The authentication server is unavailable.";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task LogoutAsync()
+    {
+        await Authentication.LogoutAsync();
+        TenantSession.Clear();
+        session = null;
+        password = string.Empty;
+    }
+}
