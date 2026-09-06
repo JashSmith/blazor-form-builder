@@ -1,3 +1,5 @@
+using BlazorFormBuilder.Core.Auth;
+
 namespace BlazorFormBuilder.Api.Auth;
 
 public sealed class TenantUserRecord
@@ -13,4 +15,6 @@ public sealed class TenantUserRecord
     public required string Email { get; init; }
 
     public required string PasswordHash { get; set; }
+
+    public TenantRole Role { get; init; } = TenantRole.Owner;
 }

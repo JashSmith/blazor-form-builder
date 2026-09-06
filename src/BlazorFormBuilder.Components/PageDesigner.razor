@@ -455,6 +455,11 @@
             statusMessage = exception.Message;
             saveSucceeded = false;
         }
+        catch (AuthorizationDeniedException exception)
+        {
+            statusMessage = exception.Message;
+            saveSucceeded = false;
+        }
     }
 
     private void MarkDirty()

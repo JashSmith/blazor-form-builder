@@ -82,10 +82,18 @@ After this repository bootstrap, create `develop` from `main` and open subsequen
 
 Open **Form builder**, drag fields from the toolbox onto the canvas, reorder them by dragging, configure them in the property panel, save the valid definition, then use **Preview form** to enter values and exercise each plugin's runtime validation.
 
-The hosted app starts with a sign-in/create-workspace screen. The first account creates a tenant and becomes its owner. Authentication uses a protected HttpOnly cookie; passwords are stored as one-way hashes, and data-protection keys persist across restarts.
+The hosted app starts with a sign-in/create-workspace/join screen. The first account creates a tenant and becomes its owner. Authentication uses a protected HttpOnly cookie; passwords are stored as one-way hashes, and data-protection keys persist across restarts.
+
+Owners can open **Team**, invite a member as Editor or Viewer, and copy the generated one-time token. The invited member selects **Join**, pastes that token, and chooses a password. Tokens are stored only as hashes, expire after seven days, and cannot be reused.
+
+| Role | View drafts | Edit and save | Invite members |
+| --- | --- | --- | --- |
+| Owner | Yes | Yes | Yes |
+| Editor | Yes | Yes | No |
+| Viewer | Yes | No | No |
 
 Authenticated Workspace and Form requests are scoped from the tenant claim—not a client-supplied tenant id—then saved through `/api/workspaces` and `/api/forms`. Responses carry an `ETag`, and stale updates receive `409 Conflict` instead of overwriting a newer edit. Browser snapshots are also namespaced by tenant id, so accounts sharing a browser cannot load each other's local fallback.
 
 ## Next slice
 
-Add tenant invitations and roles, then connect immutable published form versions to BPMN user tasks.
+Connect immutable published form versions to BPMN user tasks.

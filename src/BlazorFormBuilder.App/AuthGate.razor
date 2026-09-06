@@ -16,29 +16,38 @@ else if (session is null)
             <ul>
                 <li>Guided multilingual builders</li>
                 <li>Responsive RTL/LTR previews</li>
-                <li>Server revisions with conflict protection</li>
+                <li>Owner, editor, and viewer access</li>
             </ul>
         </section>
 
         <section class="auth-card">
             <div class="auth-tabs">
-                <button data-testid="show-login" class="@(!isRegistering ? "active" : null)" @onclick="() => SetMode(false)">Sign in</button>
-                <button data-testid="show-register" class="@(isRegistering ? "active" : null)" @onclick="() => SetMode(true)">Create workspace</button>
+                <button data-testid="show-login" class="@(mode == AuthMode.Login ? "active" : null)" @onclick="() => SetMode(AuthMode.Login)">Sign in</button>
+                <button data-testid="show-register" class="@(mode == AuthMode.Register ? "active" : null)" @onclick="() => SetMode(AuthMode.Register)">Create</button>
+                <button data-testid="show-invitation" class="@(mode == AuthMode.Invitation ? "active" : null)" @onclick="() => SetMode(AuthMode.Invitation)">Join</button>
             </div>
 
-            <h2>@(isRegistering ? "Create your tenant" : "Welcome back")</h2>
-            <p>@(isRegistering ? "The first account becomes the tenant owner." : "Enter your tenant slug and account details.")</p>
+            <h2>@Title</h2>
+            <p>@Description</p>
 
-            @if (isRegistering)
+            @if (mode == AuthMode.Register)
             {
                 <label>Organization name<input data-testid="tenant-name" autocomplete="organization" @bind="tenantName" /></label>
             }
-            else
+            else if (mode == AuthMode.Login)
             {
                 <label>Tenant slug<input data-testid="tenant-slug" autocomplete="organization" @bind="tenantSlug" /></label>
             }
-            <label>Email<input data-testid="auth-email" type="email" autocomplete="email" @bind="email" /></label>
-            <label>Password<input data-testid="auth-password" type="password" autocomplete="@(isRegistering ? "new-password" : "current-password")" @bind="password" /></label>
+            else
+            {
+                <label>Invitation token<textarea data-testid="invitation-token" rows="3" @bind="invitationToken"></textarea></label>
+            }
+
+            @if (mode != AuthMode.Invitation)
+            {
+                <label>Email<input data-testid="auth-email" type="email" autocomplete="email" @bind="email" /></label>
+            }
+            <label>Password<input data-testid="auth-password" type="password" autocomplete="@(mode == AuthMode.Login ? "current-password" : "new-password")" @bind="password" /></label>
 
             @if (!string.IsNullOrWhiteSpace(errorMessage))
             {
@@ -46,7 +55,7 @@ else if (session is null)
             }
 
             <button data-testid="submit-auth" class="submit" disabled="@isSubmitting" @onclick="SubmitAsync">
-                @(isSubmitting ? "Please wait…" : isRegistering ? "Create workspace" : "Sign in")
+                @(isSubmitting ? "Please wait…" : SubmitLabel)
             </button>
         </section>
     </main>
@@ -54,32 +63,60 @@ else if (session is null)
 else
 {
     <header class="session-bar">
-        <div><strong>@session.TenantSlug</strong><span>@session.Email</span></div>
+        <div><strong>@session.TenantSlug</strong><span>@session.Email · @session.Role</span></div>
+        @if (session.Role == TenantRole.Owner)
+        {
+            <button data-testid="manage-team" class="@(showTeam ? "active" : null)" @onclick="() => showTeam = !showTeam">Team</button>
+        }
         <button data-testid="logout" @onclick="LogoutAsync">Sign out</button>
     </header>
+    @if (showTeam && session.Role == TenantRole.Owner)
+    {
+        <TenantMembersPanel OnClose="() => showTeam = false" />
+    }
     <BuilderWorkspace @key="session.TenantId" />
 }
 
 @code {
     private SessionInfo? session;
+    private AuthMode mode;
     private bool isLoading = true;
-    private bool isRegistering;
     private bool isSubmitting;
+    private bool showTeam;
     private string tenantName = string.Empty;
     private string tenantSlug = string.Empty;
     private string email = string.Empty;
     private string password = string.Empty;
+    private string invitationToken = string.Empty;
     private string? errorMessage;
+
+    private string Title => mode switch
+    {
+        AuthMode.Register => "Create your tenant",
+        AuthMode.Invitation => "Join a workspace",
+        _ => "Welcome back"
+    };
+
+    private string Description => mode switch
+    {
+        AuthMode.Register => "The first account becomes the tenant owner.",
+        AuthMode.Invitation => "Paste the one-time token shared by your workspace owner.",
+        _ => "Enter your tenant slug and account details."
+    };
+
+    private string SubmitLabel => mode switch
+    {
+        AuthMode.Register => "Create workspace",
+        AuthMode.Invitation => "Accept invitation",
+        _ => "Sign in"
+    };
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
             session = await Authentication.GetSessionAsync();
-            if (session is not null)
-            {
-                TenantSession.SetTenant(session.TenantId);
-            }
+            SetSessionState();
         }
         catch (HttpRequestException)
         {
@@ -95,17 +132,22 @@ else
         }
     }
 
-    private void SetMode(bool register)
+    private void SetMode(AuthMode value)
     {
-        isRegistering = register;
+        mode = value;
         errorMessage = null;
     }
 
     private async Task SubmitAsync()
     {
         errorMessage = null;
-        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password) ||
-            (isRegistering ? string.IsNullOrWhiteSpace(tenantName) : string.IsNullOrWhiteSpace(tenantSlug)))
+        var missingCredentials = string.IsNullOrWhiteSpace(password) || (mode switch
+        {
+            AuthMode.Register => string.IsNullOrWhiteSpace(tenantName) || string.IsNullOrWhiteSpace(email),
+            AuthMode.Invitation => string.IsNullOrWhiteSpace(invitationToken),
+            _ => string.IsNullOrWhiteSpace(tenantSlug) || string.IsNullOrWhiteSpace(email)
+        });
+        if (missingCredentials)
         {
             errorMessage = "Complete every field before continuing.";
             return;
@@ -114,15 +156,15 @@ else
         isSubmitting = true;
         try
         {
-            var result = isRegistering
-                ? await Authentication.RegisterAsync(new(tenantName, email, password))
-                : await Authentication.LoginAsync(new(tenantSlug, email, password));
+            var result = mode switch
+            {
+                AuthMode.Register => await Authentication.RegisterAsync(new(tenantName, email, password)),
+                AuthMode.Invitation => await Authentication.AcceptInvitationAsync(new(invitationToken, password)),
+                _ => await Authentication.LoginAsync(new(tenantSlug, email, password))
+            };
             session = result.Session;
             errorMessage = result.Error;
-            if (session is not null)
-            {
-                TenantSession.SetTenant(session.TenantId);
-            }
+            SetSessionState();
         }
         catch (HttpRequestException)
         {
@@ -134,11 +176,27 @@ else
         }
     }
 
+    private void SetSessionState()
+    {
+        if (session is not null)
+        {
+            TenantSession.SetSession(session);
+        }
+    }
+
     private async Task LogoutAsync()
     {
         await Authentication.LogoutAsync();
         TenantSession.Clear();
         session = null;
+        showTeam = false;
         password = string.Empty;
+    }
+
+    private enum AuthMode
+    {
+        Login,
+        Register,
+        Invitation
     }
 }

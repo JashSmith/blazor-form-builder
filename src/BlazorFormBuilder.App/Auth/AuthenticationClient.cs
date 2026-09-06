@@ -28,6 +28,11 @@ public sealed class AuthenticationClient(HttpClient httpClient)
         CancellationToken cancellationToken = default) =>
         SendAsync("api/auth/register", request, cancellationToken);
 
+    public ValueTask<AuthenticationResult> AcceptInvitationAsync(
+        AcceptTenantInvitationRequest request,
+        CancellationToken cancellationToken = default) =>
+        SendAsync("api/auth/accept-invitation", request, cancellationToken);
+
     public async ValueTask LogoutAsync(CancellationToken cancellationToken = default)
     {
         using var response = await httpClient.PostAsync("api/auth/logout", content: null, cancellationToken);

@@ -41,6 +41,11 @@ public sealed class ServerBuilderWorkspaceStore(HttpClient httpClient) : IBuilde
             throw new OptimisticConcurrencyException("Workspace changed on the server. Reload before saving again.");
         }
 
+        if (response.StatusCode == HttpStatusCode.Forbidden)
+        {
+            throw new AuthorizationDeniedException("Viewer access is read-only. Ask an owner to change your role.");
+        }
+
         response.EnsureSuccessStatusCode();
         entityTag = response.Headers.ETag;
     }

@@ -12,6 +12,7 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 builder.Services.AddStandardFormFieldPlugins();
 builder.Services.AddScoped(_ => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 builder.Services.AddScoped<AuthenticationClient>();
+builder.Services.AddScoped<TenantAdministrationClient>();
 builder.Services.AddScoped<TenantSessionState>();
 builder.Services.AddScoped<BrowserFormDefinitionStore>();
 builder.Services.AddScoped<BrowserBuilderWorkspaceStore>();

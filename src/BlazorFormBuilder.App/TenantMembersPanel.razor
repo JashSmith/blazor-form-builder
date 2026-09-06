@@ -1,0 +1,98 @@
+@inject TenantAdministrationClient Administration
+
+<section class="team-panel" aria-label="Team management">
+    <div class="team-heading">
+        <div><p class="eyebrow">WORKSPACE ACCESS</p><h2>Team members</h2></div>
+        <button aria-label="Close team panel" @onclick="OnClose">Close</button>
+    </div>
+
+    <div class="invite-form">
+        <label>Email<input data-testid="invite-email" type="email" @bind="inviteEmail" /></label>
+        <label>Role<select data-testid="invite-role" @bind="inviteRole"><option value="Editor">Editor</option><option value="Viewer">Viewer</option></select></label>
+        <button data-testid="send-invite" disabled="@isBusy" @onclick="InviteAsync">Create invitation</button>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(invitationToken))
+    {
+        <div class="invitation-token" role="status">
+            <strong>Copy this one-time token now</strong>
+            <code data-testid="created-invitation-token">@invitationToken</code>
+            <span>It cannot be shown again and expires after seven days.</span>
+        </div>
+    }
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="team-error" role="alert">@errorMessage</div>
+    }
+
+    <div class="team-columns">
+        <div><h3>Members</h3>
+            @foreach (var member in members)
+            {
+                <article><span>@member.Email</span><strong>@member.Role</strong></article>
+            }
+        </div>
+        <div><h3>Pending invitations</h3>
+            @foreach (var invitation in invitations)
+            {
+                <article><span>@invitation.Email</span><strong>@invitation.Role · @invitation.ExpiresAtUtc.ToString("yyyy-MM-dd")</strong></article>
+            }
+        </div>
+    </div>
+</section>
+
+@code {
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private IReadOnlyList<TenantMemberInfo> members = [];
+    private IReadOnlyList<TenantInvitationInfo> invitations = [];
+    private string inviteEmail = string.Empty;
+    private TenantRole inviteRole = TenantRole.Editor;
+    private string? invitationToken;
+    private string? errorMessage;
+    private bool isBusy;
+
+    protected override async Task OnInitializedAsync() => await RefreshAsync();
+
+    private async Task RefreshAsync()
+    {
+        try
+        {
+            members = await Administration.GetMembersAsync();
+            invitations = await Administration.GetInvitationsAsync();
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Team information could not be loaded.";
+        }
+    }
+
+    private async Task InviteAsync()
+    {
+        errorMessage = null;
+        invitationToken = null;
+        if (string.IsNullOrWhiteSpace(inviteEmail))
+        {
+            errorMessage = "Enter the new member's email.";
+            return;
+        }
+
+        isBusy = true;
+        try
+        {
+            var invitation = await Administration.InviteAsync(new(inviteEmail, inviteRole));
+            invitationToken = invitation.Token;
+            inviteEmail = string.Empty;
+            await RefreshAsync();
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "The member or an active invitation already exists.";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+}

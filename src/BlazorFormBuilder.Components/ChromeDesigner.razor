@@ -309,6 +309,7 @@
         try { await Store.SaveAsync(Workspace); statusMessage = "Workspace saved locally"; saveSucceeded = true; }
         catch (JSException) { statusMessage = "Browser storage is unavailable"; saveSucceeded = false; }
         catch (OptimisticConcurrencyException exception) { statusMessage = exception.Message; saveSucceeded = false; }
+        catch (AuthorizationDeniedException exception) { statusMessage = exception.Message; saveSucceeded = false; }
     }
 
     private void MarkDirty() { statusMessage = "Unsaved changes"; saveSucceeded = false; StateHasChanged(); }

@@ -41,7 +41,11 @@ builder.Services
             return Task.CompletedTask;
         };
     });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("TenantOwner", policy => policy.RequireRole(nameof(TenantRole.Owner)));
+    options.AddPolicy("TenantEditor", policy => policy.RequireRole(nameof(TenantRole.Owner), nameof(TenantRole.Editor)));
+});
 
 var app = builder.Build();
 app.UseHttpsRedirection();
@@ -51,6 +55,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 MapAuthenticationEndpoints(app);
+MapTenantAdministrationEndpoints(app);
 MapWorkspaceEndpoints(app);
 MapFormEndpoints(app);
 
@@ -126,7 +131,7 @@ static void MapWorkspaceEndpoints(WebApplication app)
                 currentRevision = exception.CurrentRevision
             });
         }
-    });
+    }).RequireAuthorization("TenantEditor");
 }
 
 static void MapFormEndpoints(WebApplication app)
@@ -198,7 +203,7 @@ static void MapFormEndpoints(WebApplication app)
                 currentRevision = exception.CurrentRevision
             });
         }
-    });
+    }).RequireAuthorization("TenantEditor");
 }
 
 static void MapAuthenticationEndpoints(WebApplication app)
@@ -262,6 +267,29 @@ static void MapAuthenticationEndpoints(WebApplication app)
         return Results.Ok(ToSession(user));
     }).AllowAnonymous();
 
+    group.MapPost("/accept-invitation", async Task<IResult> (
+        AcceptTenantInvitationRequest request,
+        HttpContext context,
+        FileTenantUserRepository repository,
+        CancellationToken cancellationToken) =>
+    {
+        if (string.IsNullOrWhiteSpace(request.Token) ||
+            string.IsNullOrWhiteSpace(request.Password) ||
+            request.Password.Length < 8)
+        {
+            return Results.BadRequest(new { error = "A valid invitation and password are required." });
+        }
+
+        var user = await repository.AcceptInvitationAsync(request.Token, request.Password, cancellationToken);
+        if (user is null)
+        {
+            return Results.BadRequest(new { error = "Invitation is invalid, expired, or already used." });
+        }
+
+        await context.SignInAsync(CreatePrincipal(user));
+        return Results.Ok(ToSession(user));
+    }).AllowAnonymous();
+
     group.MapGet("/session", (ClaimsPrincipal user) =>
     {
         var userId = Guid.Parse(user.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -270,7 +298,8 @@ static void MapAuthenticationEndpoints(WebApplication app)
             userId,
             tenantId,
             user.FindFirstValue("tenant_slug")!,
-            user.FindFirstValue(ClaimTypes.Email)!));
+            user.FindFirstValue(ClaimTypes.Email)!,
+            Enum.Parse<TenantRole>(user.FindFirstValue(ClaimTypes.Role)!)));
     }).RequireAuthorization();
 
     group.MapPost("/logout", async (HttpContext context) =>
@@ -280,12 +309,67 @@ static void MapAuthenticationEndpoints(WebApplication app)
     }).RequireAuthorization();
 }
 
+static void MapTenantAdministrationEndpoints(WebApplication app)
+{
+    var group = app.MapGroup("/api/tenant").RequireAuthorization("TenantOwner");
+    group.MapGet("/members", async Task<IResult> (
+        ClaimsPrincipal principal,
+        FileTenantUserRepository repository,
+        CancellationToken cancellationToken) =>
+    {
+        var tenantId = GetTenantId(principal);
+        return tenantId is null
+            ? Results.Unauthorized()
+            : Results.Ok(await repository.ListMembersAsync(tenantId.Value, cancellationToken));
+    });
+
+    group.MapGet("/invitations", async Task<IResult> (
+        ClaimsPrincipal principal,
+        FileTenantUserRepository repository,
+        CancellationToken cancellationToken) =>
+    {
+        var tenantId = GetTenantId(principal);
+        return tenantId is null
+            ? Results.Unauthorized()
+            : Results.Ok(await repository.ListInvitationsAsync(tenantId.Value, cancellationToken));
+    });
+
+    group.MapPost("/invitations", async Task<IResult> (
+        InviteTenantMemberRequest request,
+        ClaimsPrincipal principal,
+        FileTenantUserRepository repository,
+        CancellationToken cancellationToken) =>
+    {
+        var tenantId = GetTenantId(principal);
+        if (tenantId is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Email) ||
+            request.Role is not (TenantRole.Editor or TenantRole.Viewer))
+        {
+            return Results.BadRequest(new { error = "Invite an Editor or Viewer with a valid email." });
+        }
+
+        var invitation = await repository.CreateInvitationAsync(
+            tenantId.Value,
+            request.Email,
+            request.Role,
+            cancellationToken);
+        return invitation is null
+            ? Results.Conflict(new { error = "Member or active invitation already exists." })
+            : Results.Created($"/api/tenant/invitations/{invitation.InvitationId}", invitation);
+    });
+}
+
 static ClaimsPrincipal CreatePrincipal(TenantUserRecord user)
 {
     var identity = new ClaimsIdentity(
     [
         new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
         new Claim(ClaimTypes.Email, user.Email),
+        new Claim(ClaimTypes.Role, user.Role.ToString()),
         new Claim("tenant_id", user.TenantId.ToString()),
         new Claim("tenant_slug", user.TenantSlug)
     ], CookieAuthenticationDefaults.AuthenticationScheme);
@@ -293,7 +377,7 @@ static ClaimsPrincipal CreatePrincipal(TenantUserRecord user)
 }
 
 static SessionInfo ToSession(TenantUserRecord user) =>
-    new(user.Id, user.TenantId, user.TenantSlug, user.Email);
+    new(user.Id, user.TenantId, user.TenantSlug, user.Email, user.Role);
 
 static Guid? GetTenantId(ClaimsPrincipal user) =>
     Guid.TryParse(user.FindFirstValue("tenant_id"), out var tenantId) ? tenantId : null;

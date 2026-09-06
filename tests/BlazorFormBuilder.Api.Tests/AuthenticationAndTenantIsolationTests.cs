@@ -48,6 +48,50 @@ public sealed class AuthenticationAndTenantIsolationTests : IDisposable
         Assert.Equal(HttpStatusCode.NotFound, crossTenantResponse.StatusCode);
     }
 
+    [Fact]
+    public async Task OwnerCanInviteEditorWhoCanSaveButCannotManageTeam()
+    {
+        using var ownerClient = factory.CreateClient();
+        using var editorClient = factory.CreateClient();
+        await RegisterAsync(ownerClient, "Editorial Team", "owner@editorial.test");
+
+        var invitation = await InviteAsync(ownerClient, "editor@editorial.test", TenantRole.Editor);
+        using var acceptResponse = await editorClient.PostAsJsonAsync(
+            "/api/auth/accept-invitation",
+            new AcceptTenantInvitationRequest(invitation.Token!, "editor-password"));
+        var session = await acceptResponse.Content.ReadFromJsonAsync<SessionInfo>();
+        var workspace = PageBuilderService.CreateWorkspace("Shared workspace");
+        using var saveResponse = await editorClient.PutAsJsonAsync($"/api/workspaces/{workspace.Id}", workspace);
+        using var teamResponse = await editorClient.GetAsync("/api/tenant/members");
+
+        Assert.Equal(HttpStatusCode.OK, acceptResponse.StatusCode);
+        Assert.Equal(TenantRole.Editor, session!.Role);
+        Assert.Equal(HttpStatusCode.Created, saveResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, teamResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task ViewerCanReadWorkspaceButCannotSave()
+    {
+        using var ownerClient = factory.CreateClient();
+        using var viewerClient = factory.CreateClient();
+        await RegisterAsync(ownerClient, "Review Team", "owner@review.test");
+        var workspace = PageBuilderService.CreateWorkspace("Review workspace");
+        using var ownerSaveResponse = await ownerClient.PutAsJsonAsync($"/api/workspaces/{workspace.Id}", workspace);
+        ownerSaveResponse.EnsureSuccessStatusCode();
+
+        var invitation = await InviteAsync(ownerClient, "viewer@review.test", TenantRole.Viewer);
+        using var acceptResponse = await viewerClient.PostAsJsonAsync(
+            "/api/auth/accept-invitation",
+            new AcceptTenantInvitationRequest(invitation.Token!, "viewer-password"));
+        acceptResponse.EnsureSuccessStatusCode();
+        using var readResponse = await viewerClient.GetAsync("/api/workspaces/current");
+        using var saveResponse = await viewerClient.PutAsJsonAsync($"/api/workspaces/{workspace.Id}", workspace);
+
+        Assert.Equal(HttpStatusCode.OK, readResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, saveResponse.StatusCode);
+    }
+
     public void Dispose()
     {
         factory.Dispose();
@@ -65,5 +109,17 @@ public sealed class AuthenticationAndTenantIsolationTests : IDisposable
             "/api/auth/register",
             new RegisterTenantRequest(tenantName, email, "testing-password"));
         response.EnsureSuccessStatusCode();
+    }
+
+    private static async Task<TenantInvitationInfo> InviteAsync(
+        HttpClient ownerClient,
+        string email,
+        TenantRole role)
+    {
+        using var response = await ownerClient.PostAsJsonAsync(
+            "/api/tenant/invitations",
+            new InviteTenantMemberRequest(email, role));
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<TenantInvitationInfo>())!;
     }
 }
