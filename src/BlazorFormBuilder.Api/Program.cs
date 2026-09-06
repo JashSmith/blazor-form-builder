@@ -3,6 +3,8 @@ using BlazorFormBuilder.Api.Auth;
 using BlazorFormBuilder.Api.Persistence;
 using BlazorFormBuilder.Core.Auth;
 using BlazorFormBuilder.Core.Models;
+using BlazorFormBuilder.Core.Services;
+using BlazorFormBuilder.Core.Validation;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
@@ -18,6 +20,10 @@ builder.Services.AddSingleton(new FileDocumentRepository<BuilderWorkspaceDefinit
 builder.Services.AddSingleton(new FileDocumentRepository<FormDefinition>(
     Path.Combine(dataRoot, "forms"),
     document => document.Id));
+builder.Services.AddSingleton(new FileDocumentRepository<WorkflowDefinition>(
+    Path.Combine(dataRoot, "workflows"),
+    document => document.Id));
+builder.Services.AddSingleton(new FilePublishedFormRepository(Path.Combine(dataRoot, "published-forms")));
 builder.Services.AddSingleton(new FileTenantUserRepository(Path.Combine(dataRoot, "identity", "users.json")));
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataRoot, "keys")))
@@ -58,6 +64,8 @@ MapAuthenticationEndpoints(app);
 MapTenantAdministrationEndpoints(app);
 MapWorkspaceEndpoints(app);
 MapFormEndpoints(app);
+MapPublicationEndpoints(app);
+MapWorkflowEndpoints(app);
 
 app.MapFallbackToFile("index.html");
 app.Run();
@@ -200,6 +208,149 @@ static void MapFormEndpoints(WebApplication app)
             return Results.Conflict(new
             {
                 error = "The document was changed by another editor.",
+                currentRevision = exception.CurrentRevision
+            });
+        }
+    }).RequireAuthorization("TenantEditor");
+}
+
+static void MapPublicationEndpoints(WebApplication app)
+{
+    var group = app.MapGroup("/api/publications").RequireAuthorization();
+    group.MapGet("/", async Task<IResult> (
+        ClaimsPrincipal principal,
+        FilePublishedFormRepository repository,
+        CancellationToken cancellationToken) =>
+    {
+        var tenantId = GetTenantId(principal);
+        return tenantId is null
+            ? Results.Unauthorized()
+            : Results.Ok(await repository.ListAsync(tenantId.Value, cancellationToken));
+    });
+
+    group.MapGet("/forms/{formId:guid}/versions/{version:int}", async Task<IResult> (
+        Guid formId,
+        int version,
+        ClaimsPrincipal principal,
+        FilePublishedFormRepository repository,
+        CancellationToken cancellationToken) =>
+    {
+        var tenantId = GetTenantId(principal);
+        if (tenantId is null)
+        {
+            return Results.Unauthorized();
+        }
+        var publication = await repository.GetAsync(tenantId.Value, formId, version, cancellationToken);
+        return publication is null ? Results.NotFound() : Results.Ok(publication);
+    });
+
+    group.MapPost("/forms/{formId:guid}", async Task<IResult> (
+        Guid formId,
+        ClaimsPrincipal principal,
+        FileDocumentRepository<FormDefinition> draftRepository,
+        FilePublishedFormRepository publicationRepository,
+        CancellationToken cancellationToken) =>
+    {
+        var tenantId = GetTenantId(principal);
+        var userId = GetUserId(principal);
+        if (tenantId is null || userId is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        var draft = await draftRepository.GetAsync(tenantId.Value, formId, cancellationToken);
+        if (draft is null)
+        {
+            return Results.NotFound(new { error = "Save the draft before publishing." });
+        }
+        var issues = FormDefinitionValidator.Validate(draft.Document);
+        if (issues.Count > 0)
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["form"] = issues.Select(issue => issue.Message).ToArray()
+            });
+        }
+
+        var publication = await publicationRepository.PublishAsync(
+            tenantId.Value,
+            userId.Value,
+            draft.Document,
+            cancellationToken);
+        return Results.Created(
+            $"/api/publications/forms/{formId}/versions/{publication.Version}",
+            publication);
+    }).RequireAuthorization("TenantEditor");
+}
+
+static void MapWorkflowEndpoints(WebApplication app)
+{
+    var group = app.MapGroup("/api/workflows").RequireAuthorization();
+    group.MapGet("/current", async Task<IResult> (
+        HttpContext context,
+        FileDocumentRepository<WorkflowDefinition> repository,
+        CancellationToken cancellationToken) =>
+    {
+        var tenantId = GetTenantId(context.User);
+        if (tenantId is null)
+        {
+            return Results.Unauthorized();
+        }
+        var stored = await repository.GetLatestAsync(tenantId.Value, cancellationToken);
+        return stored is null ? Results.NotFound() : VersionedJson(context, stored);
+    });
+
+    group.MapPut("/{id:guid}", async Task<IResult> (
+        Guid id,
+        WorkflowDefinition workflow,
+        HttpContext context,
+        FileDocumentRepository<WorkflowDefinition> repository,
+        FilePublishedFormRepository publicationRepository,
+        CancellationToken cancellationToken) =>
+    {
+        var tenantId = GetTenantId(context.User);
+        if (tenantId is null)
+        {
+            return Results.Unauthorized();
+        }
+        if (id != workflow.Id)
+        {
+            return Results.BadRequest(new { error = "Route id must match workflow id." });
+        }
+
+        var issues = WorkflowDefinitionService.Validate(workflow).ToList();
+        foreach (var task in workflow.UserTasks.Where(task => task.FormId is not null && task.FormVersion is not null))
+        {
+            var publication = await publicationRepository.GetAsync(
+                tenantId.Value,
+                task.FormId!.Value,
+                task.FormVersion!.Value,
+                cancellationToken);
+            if (publication is null)
+            {
+                issues.Add($"User task '{task.Name}' references a published form version that does not exist.");
+            }
+        }
+        if (issues.Count > 0)
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]> { ["workflow"] = issues.ToArray() });
+        }
+
+        WorkflowDefinitionService.Touch(workflow);
+        var expectedRevision = ParseRevision(context.Request.Headers.IfMatch);
+        try
+        {
+            var stored = await repository.SaveAsync(tenantId.Value, workflow, expectedRevision, cancellationToken);
+            return VersionedJson(
+                context,
+                stored,
+                stored.Revision == 1 ? StatusCodes.Status201Created : StatusCodes.Status200OK);
+        }
+        catch (DocumentConcurrencyException exception)
+        {
+            return Results.Conflict(new
+            {
+                error = "The workflow was changed by another editor.",
                 currentRevision = exception.CurrentRevision
             });
         }
@@ -381,6 +532,9 @@ static SessionInfo ToSession(TenantUserRecord user) =>
 
 static Guid? GetTenantId(ClaimsPrincipal user) =>
     Guid.TryParse(user.FindFirstValue("tenant_id"), out var tenantId) ? tenantId : null;
+
+static Guid? GetUserId(ClaimsPrincipal user) =>
+    Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var userId) ? userId : null;
 
 static IResult VersionedJson<TDocument>(
     HttpContext context,

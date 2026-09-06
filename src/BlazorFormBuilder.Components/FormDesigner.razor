@@ -1,5 +1,6 @@
 @inject IEnumerable<IFormFieldPlugin> AvailablePlugins
 @inject IFormDefinitionStore Store
+@inject IPublishedFormStore PublicationStore
 
 <div class="designer-shell">
     <header class="app-toolbar">
@@ -15,8 +16,22 @@
             <button class="secondary" @onclick="ToggleJson" disabled="@isPreview">JSON</button>
             <button data-testid="toggle-form-preview" class="secondary" @onclick="TogglePreview">@(isPreview ? "Back to designer" : "Preview form")</button>
             <button data-testid="save-form" class="primary" @onclick="SaveAsync" disabled="@isPreview">Save form</button>
+            <button data-testid="publish-form" class="publish" @onclick="PublishAsync" disabled="@isPreview">Publish version</button>
         </div>
     </header>
+
+    @if (PublishedVersions.Count > 0)
+    {
+        <details class="publication-history">
+            <summary>@PublishedVersions.Count published version@(PublishedVersions.Count == 1 ? null : "s")</summary>
+            <div>
+                @foreach (var publication in PublishedVersions)
+                {
+                    <span><strong>v@publication.Version</strong> @publication.PublishedAtUtc.ToString("yyyy-MM-dd HH:mm") UTC · @publication.Definition.Fields.Count fields</span>
+                }
+            </div>
+        </details>
+    }
 
     <GuidedSteps Steps="WizardSteps" CurrentStep="currentStep" StepChanged="SetStep" TestId="form-step" />
 
@@ -190,6 +205,7 @@
     private bool newLanguageIsRtl;
     private int currentStep;
     private int lastDesignerStep;
+    private IReadOnlyList<PublishedFormVersion> PublishedVersions = [];
     private static readonly IReadOnlyList<string> WizardSteps = ["Fields", "Settings", "Translations", "Preview"];
 
     private FormFieldDefinition? SelectedField =>
@@ -214,6 +230,10 @@
         {
             Definition = await Store.LoadAsync() ?? Definition;
             FormDefinitionService.NormalizeLocalization(Definition);
+            PublishedVersions = (await PublicationStore.ListAsync())
+                .Where(publication => publication.FormId == Definition.Id)
+                .OrderByDescending(publication => publication.Version)
+                .ToArray();
             if (Definition.Fields.Count > 0)
             {
                 statusMessage = "Draft restored";
@@ -341,6 +361,42 @@
         catch (AuthorizationDeniedException exception)
         {
             statusMessage = exception.Message;
+            saveSucceeded = false;
+        }
+    }
+
+    private async Task PublishAsync()
+    {
+        validationRequested = true;
+        if (DefinitionIssues.Count > 0)
+        {
+            statusMessage = "Fix validation errors before publishing";
+            saveSucceeded = false;
+            return;
+        }
+
+        FormDefinitionService.Touch(Definition);
+        try
+        {
+            await Store.SaveAsync(Definition);
+            var publication = await PublicationStore.PublishAsync(Definition.Id);
+            PublishedVersions = [publication, .. PublishedVersions];
+            statusMessage = $"Published immutable version {publication.Version}";
+            saveSucceeded = true;
+        }
+        catch (AuthorizationDeniedException exception)
+        {
+            statusMessage = exception.Message;
+            saveSucceeded = false;
+        }
+        catch (OptimisticConcurrencyException exception)
+        {
+            statusMessage = exception.Message;
+            saveSucceeded = false;
+        }
+        catch (HttpRequestException)
+        {
+            statusMessage = "Publishing requires the hosted API";
             saveSucceeded = false;
         }
     }

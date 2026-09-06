@@ -1,0 +1,164 @@
+@inject IWorkflowDefinitionStore WorkflowStore
+@inject IPublishedFormStore PublicationStore
+
+<div class="workflow-shell">
+    <header class="workflow-toolbar">
+        <div><span class="eyebrow">PROCESS DESIGNER</span><h1>Workflow user tasks</h1></div>
+        <div class="toolbar-actions">
+            @if (!string.IsNullOrWhiteSpace(statusMessage))
+            {
+                <span class="status @(saveSucceeded ? "success" : null)">@statusMessage</span>
+            }
+            <button data-testid="save-workflow" class="primary" @onclick="SaveAsync">Save workflow</button>
+        </div>
+    </header>
+
+    <section class="workflow-settings">
+        <label>Workflow name<input aria-label="Workflow name" @bind="Workflow.Name" @bind:event="oninput" @bind:after="MarkDirty" /></label>
+        <div>
+            <strong>Published form catalog</strong>
+            <span>@Publications.Count immutable version@(Publications.Count == 1 ? null : "s") available</span>
+        </div>
+    </section>
+
+    @if (validationIssues.Count > 0)
+    {
+        <div class="workflow-errors" role="alert">
+            @foreach (var issue in validationIssues)
+            {
+                <span>@issue</span>
+            }
+        </div>
+    }
+
+    <main class="workflow-canvas">
+        <div class="start-node"><span>Start</span></div>
+        @foreach (var task in Workflow.UserTasks.OrderBy(item => item.Order))
+        {
+            <span class="connector">→</span>
+            <article class="task-card" @key="task.Id">
+                <div class="task-heading">
+                    <span>User task @(task.Order + 1)</span>
+                    <button title="Remove task" @onclick="() => RemoveTask(task.Id)">×</button>
+                </div>
+                <label>Task name<input @bind="task.Name" @bind:event="oninput" @bind:after="MarkDirty" /></label>
+                <label>Published form version
+                    <select data-testid="task-publication" value="@PublicationValue(task)" @onchange="eventArgs => AssignPublication(task, eventArgs.Value?.ToString())">
+                        <option value="">Select a published form…</option>
+                        @foreach (var publication in Publications)
+                        {
+                            <option value="@publication.PublicationId">@publication.Definition.Name · v@publication.Version</option>
+                        }
+                    </select>
+                </label>
+                @if (FindPublication(task) is { } selected)
+                {
+                    <div class="version-lock">
+                        <strong>Locked to v@selected.Version</strong>
+                        <span>@selected.Definition.Fields.Count fields · @selected.PublishedAtUtc.ToString("yyyy-MM-dd HH:mm") UTC</span>
+                    </div>
+                }
+            </article>
+        }
+        <span class="connector">→</span>
+        <button data-testid="add-user-task" class="add-task" @onclick="AddTask">+ Add user task</button>
+        <span class="connector">→</span>
+        <div class="end-node"><span>End</span></div>
+    </main>
+
+    @if (Publications.Count == 0)
+    {
+        <aside class="empty-publications">
+            <strong>No published forms yet</strong>
+            <span>Open Forms, save a valid draft, then publish its first immutable version.</span>
+        </aside>
+    }
+</div>
+
+@code {
+    private WorkflowDefinition Workflow = WorkflowDefinitionService.Create("Customer approval");
+    private IReadOnlyList<PublishedFormVersion> Publications = [];
+    private IReadOnlyList<string> validationIssues = [];
+    private string? statusMessage;
+    private bool saveSucceeded;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            Publications = await PublicationStore.ListAsync();
+            Workflow = await WorkflowStore.LoadAsync() ?? Workflow;
+        }
+        catch (HttpRequestException)
+        {
+            statusMessage = "Workflow server is unavailable";
+        }
+    }
+
+    private void AddTask()
+    {
+        WorkflowDefinitionService.AddUserTask(Workflow, $"Review step {Workflow.UserTasks.Count + 1}");
+        MarkDirty();
+    }
+
+    private void RemoveTask(Guid taskId)
+    {
+        WorkflowDefinitionService.RemoveUserTask(Workflow, taskId);
+        MarkDirty();
+    }
+
+    private void AssignPublication(WorkflowUserTaskDefinition task, string? publicationId)
+    {
+        var publication = Guid.TryParse(publicationId, out var id)
+            ? Publications.FirstOrDefault(item => item.PublicationId == id)
+            : null;
+        WorkflowDefinitionService.AssignForm(task, publication);
+        MarkDirty();
+    }
+
+    private PublishedFormVersion? FindPublication(WorkflowUserTaskDefinition task) =>
+        Publications.FirstOrDefault(publication =>
+            publication.FormId == task.FormId && publication.Version == task.FormVersion);
+
+    private string PublicationValue(WorkflowUserTaskDefinition task) =>
+        FindPublication(task)?.PublicationId.ToString() ?? string.Empty;
+
+    private async Task SaveAsync()
+    {
+        validationIssues = WorkflowDefinitionService.Validate(Workflow);
+        if (validationIssues.Count > 0)
+        {
+            statusMessage = "Complete the workflow before saving";
+            saveSucceeded = false;
+            return;
+        }
+        try
+        {
+            await WorkflowStore.SaveAsync(Workflow);
+            statusMessage = "Workflow saved";
+            saveSucceeded = true;
+        }
+        catch (OptimisticConcurrencyException exception)
+        {
+            statusMessage = exception.Message;
+            saveSucceeded = false;
+        }
+        catch (AuthorizationDeniedException exception)
+        {
+            statusMessage = exception.Message;
+            saveSucceeded = false;
+        }
+        catch (HttpRequestException)
+        {
+            statusMessage = "Workflow could not be saved";
+            saveSucceeded = false;
+        }
+    }
+
+    private void MarkDirty()
+    {
+        validationIssues = [];
+        statusMessage = "Unsaved changes";
+        saveSucceeded = false;
+    }
+}
