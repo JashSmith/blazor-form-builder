@@ -450,6 +450,11 @@
             statusMessage = "Browser storage is unavailable";
             saveSucceeded = false;
         }
+        catch (OptimisticConcurrencyException exception)
+        {
+            statusMessage = exception.Message;
+            saveSucceeded = false;
+        }
     }
 
     private void MarkDirty()
