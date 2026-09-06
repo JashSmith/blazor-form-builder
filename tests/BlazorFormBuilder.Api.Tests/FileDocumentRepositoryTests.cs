@@ -15,10 +15,10 @@ public sealed class FileDocumentRepositoryTests : IDisposable
     public async Task SavedWorkspaceSurvivesRepositoryRestart()
     {
         var workspace = PageBuilderService.CreateWorkspace("Portal");
-        var firstRepository = CreateRepository();
+        using var firstRepository = CreateRepository();
 
         var saved = await firstRepository.SaveAsync(workspace, expectedRevision: null);
-        var restartedRepository = CreateRepository();
+        using var restartedRepository = CreateRepository();
         var restored = await restartedRepository.GetAsync(workspace.Id);
 
         Assert.Equal(1, saved.Revision);
@@ -31,7 +31,7 @@ public sealed class FileDocumentRepositoryTests : IDisposable
     public async Task StaleRevisionCannotOverwriteNewerWorkspace()
     {
         var workspace = PageBuilderService.CreateWorkspace("Portal");
-        var repository = CreateRepository();
+        using var repository = CreateRepository();
         var first = await repository.SaveAsync(workspace, expectedRevision: null);
         workspace.Name = "Portal v2";
         var second = await repository.SaveAsync(workspace, first.Revision);
@@ -51,6 +51,8 @@ public sealed class FileDocumentRepositoryTests : IDisposable
         {
             Directory.Delete(directory, recursive: true);
         }
+
+        GC.SuppressFinalize(this);
     }
 
     private FileDocumentRepository<BuilderWorkspaceDefinition> CreateRepository() =>

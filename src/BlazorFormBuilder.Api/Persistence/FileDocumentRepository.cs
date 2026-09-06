@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace BlazorFormBuilder.Api.Persistence;
 
-public sealed class FileDocumentRepository<TDocument>(string directory, Func<TDocument, Guid> getId)
+public sealed class FileDocumentRepository<TDocument>(string directory, Func<TDocument, Guid> getId) : IDisposable
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web)
     {
@@ -108,5 +108,11 @@ public sealed class FileDocumentRepository<TDocument>(string directory, Func<TDo
 
         await using var stream = File.OpenRead(path);
         return await JsonSerializer.DeserializeAsync<StoredDocument<TDocument>>(stream, SerializerOptions, cancellationToken);
+    }
+
+    public void Dispose()
+    {
+        gate.Dispose();
+        GC.SuppressFinalize(this);
     }
 }
