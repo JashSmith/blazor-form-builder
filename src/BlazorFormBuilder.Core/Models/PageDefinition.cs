@@ -8,6 +8,14 @@ public sealed class PageDefinition
 
     public required string Slug { get; set; }
 
+    public LocalizedTextDefinition Title { get; init; } = new() { Key = "page.title" };
+
+    public List<string> LanguageCodes { get; init; } = ["en"];
+
+    public Guid? HeaderId { get; set; }
+
+    public Guid? FooterId { get; set; }
+
     public ResponsiveGridDefinition Grid { get; init; } = new();
 
     public HeaderDefinition Header { get; init; } = new();
@@ -33,6 +41,8 @@ public sealed class LayoutBoxDefinition
     public required LayoutBoxKind Kind { get; init; }
 
     public required string Title { get; set; }
+
+    public LocalizedTextDefinition TitleResource { get; init; } = new();
 
     public int Order { get; set; }
 

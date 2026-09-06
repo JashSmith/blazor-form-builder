@@ -4,11 +4,38 @@ namespace BlazorFormBuilder.Core.Services;
 
 public static class FormDefinitionService
 {
-    public static FormDefinition Create(string name) => new()
+    public static FormDefinition Create(string name)
     {
-        Id = Guid.NewGuid(),
-        Name = NormalizeName(name)
-    };
+        var normalizedName = NormalizeName(name);
+        var form = new FormDefinition { Id = Guid.NewGuid(), Name = normalizedName };
+        form.Title.Values[form.Localization.DefaultLanguageCode] = normalizedName;
+        return form;
+    }
+
+    public static void NormalizeLocalization(FormDefinition form)
+    {
+        ArgumentNullException.ThrowIfNull(form);
+        if (form.Localization.Languages.Count == 0)
+        {
+            form.Localization.Languages.Add(new() { Code = "en", DisplayName = "English", Direction = ContentDirection.LeftToRight });
+        }
+        if (!form.Localization.Languages.Any(language => string.Equals(language.Code, form.Localization.DefaultLanguageCode, StringComparison.OrdinalIgnoreCase)))
+        {
+            form.Localization.DefaultLanguageCode = form.Localization.Languages[0].Code;
+        }
+        if (!form.LanguageCodes.Contains(form.Localization.DefaultLanguageCode, StringComparer.OrdinalIgnoreCase))
+        {
+            form.LanguageCodes.Insert(0, form.Localization.DefaultLanguageCode);
+        }
+        form.Title.Values.TryAdd(form.Localization.DefaultLanguageCode, form.Name);
+        foreach (var field in form.Fields)
+        {
+            field.LabelResource.Key = string.IsNullOrWhiteSpace(field.LabelResource.Key) ? $"forms.{form.Id:N}.fields.{field.Key}.label" : field.LabelResource.Key;
+            field.LabelResource.Values.TryAdd(form.Localization.DefaultLanguageCode, field.Label);
+            field.PlaceholderResource.Key = string.IsNullOrWhiteSpace(field.PlaceholderResource.Key) ? $"forms.{form.Id:N}.fields.{field.Key}.placeholder" : field.PlaceholderResource.Key;
+            field.PlaceholderResource.Values.TryAdd(form.Localization.DefaultLanguageCode, field.Placeholder ?? string.Empty);
+        }
+    }
 
     public static void AddField(FormDefinition form, FormFieldDefinition field)
     {

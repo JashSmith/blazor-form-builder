@@ -7,16 +7,22 @@
 
         <nav aria-label="Builder sections">
             <button data-testid="open-page-builder" class="@(activeTool == BuilderTool.Pages ? "active" : null)" @onclick="() => SelectTool(BuilderTool.Pages)">
-                <span>▦</span> Page builder
+                <span class="nav-index">1</span><span class="nav-copy"><strong>Pages</strong><small>Structure and responsive layout</small></span>
+            </button>
+            <button data-testid="open-header-builder" class="@(activeTool == BuilderTool.Headers ? "active" : null)" @onclick="() => SelectTool(BuilderTool.Headers)">
+                <span class="nav-index">2</span><span class="nav-copy"><strong>Headers</strong><small>Brand and navigation menus</small></span>
+            </button>
+            <button data-testid="open-footer-builder" class="@(activeTool == BuilderTool.Footers ? "active" : null)" @onclick="() => SelectTool(BuilderTool.Footers)">
+                <span class="nav-index">3</span><span class="nav-copy"><strong>Footers</strong><small>Links and status widgets</small></span>
             </button>
             <button data-testid="open-form-builder" class="@(activeTool == BuilderTool.Forms ? "active" : null)" @onclick="() => SelectTool(BuilderTool.Forms)">
-                <span>☷</span> Form builder
+                <span class="nav-index">4</span><span class="nav-copy"><strong>Forms</strong><small>Fields, rules and translations</small></span>
             </button>
         </nav>
 
         <div class="workspace-help">
-            <strong>Everything is editable</strong>
-            <span>Click an item for settings or drag it onto a canvas.</span>
+            <strong>Guided workflow</strong>
+            <span>Follow the numbered steps in each builder. Preview stays visible while you edit.</span>
         </div>
     </aside>
 
@@ -24,6 +30,14 @@
         @if (activeTool == BuilderTool.Pages)
         {
             <PageDesigner />
+        }
+        else if (activeTool == BuilderTool.Headers)
+        {
+            <ChromeDesigner Kind="ChromeBuilderKind.Header" />
+        }
+        else if (activeTool == BuilderTool.Footers)
+        {
+            <ChromeDesigner Kind="ChromeBuilderKind.Footer" />
         }
         else
         {
@@ -40,6 +54,8 @@
     private enum BuilderTool
     {
         Pages,
+        Headers,
+        Footers,
         Forms
     }
 }

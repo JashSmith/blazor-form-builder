@@ -1,9 +1,17 @@
 @inject IEnumerable<IFormFieldPlugin> AvailablePlugins
 
-<section class="preview-card">
+<section class="preview-card" dir="@CurrentDirection">
     <div class="preview-heading">
         <span class="eyebrow">LIVE FORM</span>
-        <h2>@Definition.Name</h2>
+        <div class="preview-title-row">
+            <h2>@Definition.Title.Resolve(currentLanguageCode, Definition.Name)</h2>
+            <select aria-label="Form preview language" value="@currentLanguageCode" @onchange="ChangeLanguage">
+                @foreach (var language in FormLanguages)
+                {
+                    <option value="@language.Code">@language.DisplayName</option>
+                }
+            </select>
+        </div>
         <p>Complete the fields below and submit to test runtime validation.</p>
     </div>
 
@@ -43,17 +51,41 @@
     private readonly Dictionary<Guid, IReadOnlyList<string>> Errors = [];
     private IReadOnlyDictionary<string, IFormFieldPlugin> PluginsByType = new Dictionary<string, IFormFieldPlugin>();
     private bool submittedSuccessfully;
+    private string currentLanguageCode = "en";
 
-    protected override void OnInitialized() => PluginsByType = AvailablePlugins.ToDictionary(
-        plugin => plugin.Type,
-        StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyList<LanguageDefinition> FormLanguages => Definition.Localization.Languages.Where(language =>
+        Definition.LanguageCodes.Contains(language.Code, StringComparer.OrdinalIgnoreCase)).ToArray();
+
+    private string CurrentDirection => Definition.Localization.Languages.FirstOrDefault(language =>
+        string.Equals(language.Code, currentLanguageCode, StringComparison.OrdinalIgnoreCase))?.Direction == ContentDirection.RightToLeft ? "rtl" : "ltr";
+
+    protected override void OnInitialized()
+    {
+        FormDefinitionService.NormalizeLocalization(Definition);
+        currentLanguageCode = Definition.LanguageCodes.Contains(Definition.Localization.DefaultLanguageCode, StringComparer.OrdinalIgnoreCase)
+            ? Definition.Localization.DefaultLanguageCode
+            : Definition.LanguageCodes.FirstOrDefault() ?? Definition.Localization.DefaultLanguageCode;
+        PluginsByType = AvailablePlugins.ToDictionary(plugin => plugin.Type, StringComparer.OrdinalIgnoreCase);
+    }
 
     private IDictionary<string, object> RuntimeParameters(FormFieldDefinition item)
     {
         Values.TryGetValue(item.Id, out var value);
         var changed = EventCallback.Factory.Create<string?>(this, nextValue => SetValue(item.Id, nextValue));
-        return FormFieldComponentParameters.ForRuntime(item, value, changed);
+        var localizedItem = new FormFieldDefinition
+        {
+            Id = item.Id,
+            Type = item.Type,
+            Key = item.Key,
+            Label = item.LabelResource.Resolve(currentLanguageCode, item.Label),
+            Placeholder = item.PlaceholderResource.Resolve(currentLanguageCode, item.Placeholder ?? string.Empty),
+            IsRequired = item.IsRequired,
+            Order = item.Order
+        };
+        return FormFieldComponentParameters.ForRuntime(localizedItem, value, changed);
     }
+
+    private void ChangeLanguage(ChangeEventArgs args) => currentLanguageCode = args.Value?.ToString() ?? Definition.Localization.DefaultLanguageCode;
 
     private void SetValue(Guid fieldId, string? value)
     {

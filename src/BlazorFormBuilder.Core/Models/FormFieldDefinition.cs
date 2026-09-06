@@ -10,7 +10,11 @@ public sealed class FormFieldDefinition
 
     public required string Label { get; set; }
 
+    public LocalizedTextDefinition LabelResource { get; init; } = new();
+
     public string? Placeholder { get; set; }
+
+    public LocalizedTextDefinition PlaceholderResource { get; init; } = new();
 
     public bool IsRequired { get; set; }
 
