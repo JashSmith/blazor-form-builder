@@ -18,6 +18,9 @@
             <button data-testid="open-form-builder" class="@(activeTool == BuilderTool.Forms ? "active" : null)" @onclick="() => SelectTool(BuilderTool.Forms)">
                 <span class="nav-index">4</span><span class="nav-copy"><strong>Forms</strong><small>Fields, rules and translations</small></span>
             </button>
+            <button data-testid="open-workflow-builder" class="@(activeTool == BuilderTool.Workflows ? "active" : null)" @onclick="() => SelectTool(BuilderTool.Workflows)">
+                <span class="nav-index">5</span><span class="nav-copy"><strong>Workflows</strong><small>User tasks and form versions</small></span>
+            </button>
         </nav>
 
         <div class="workspace-help">
@@ -39,9 +42,13 @@
         {
             <ChromeDesigner Kind="ChromeBuilderKind.Footer" />
         }
-        else
+        else if (activeTool == BuilderTool.Forms)
         {
             <FormDesigner />
+        }
+        else
+        {
+            <WorkflowDesigner />
         }
     </main>
 </div>
@@ -56,6 +63,7 @@
         Pages,
         Headers,
         Footers,
-        Forms
+        Forms,
+        Workflows
     }
 }

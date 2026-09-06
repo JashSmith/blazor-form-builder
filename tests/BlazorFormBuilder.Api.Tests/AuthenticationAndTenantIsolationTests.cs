@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using BlazorFormBuilder.Core.Auth;
+using BlazorFormBuilder.Core.Models;
 using BlazorFormBuilder.Core.Services;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -90,6 +91,54 @@ public sealed class AuthenticationAndTenantIsolationTests : IDisposable
 
         Assert.Equal(HttpStatusCode.OK, readResponse.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, saveResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task PublishedFormVersionCanBeLockedToWorkflowUserTask()
+    {
+        using var client = factory.CreateClient();
+        await RegisterAsync(client, "Process Team", "owner@process.test");
+        var form = FormDefinitionService.Create("Expense request");
+        form.Fields.Add(new FormFieldDefinition
+        {
+            Id = Guid.NewGuid(),
+            Type = "number",
+            Key = "amount",
+            Label = "Amount",
+            IsRequired = true
+        });
+        using var draftResponse = await client.PutAsJsonAsync($"/api/forms/{form.Id}", form);
+        draftResponse.EnsureSuccessStatusCode();
+
+        using var publishResponse = await client.PostAsync($"/api/publications/forms/{form.Id}", content: null);
+        var publication = await publishResponse.Content.ReadFromJsonAsync<PublishedFormVersion>();
+        var workflow = WorkflowDefinitionService.Create("Expense approval");
+        var task = WorkflowDefinitionService.AddUserTask(workflow, "Manager review");
+        WorkflowDefinitionService.AssignForm(task, publication);
+        using var workflowResponse = await client.PutAsJsonAsync($"/api/workflows/{workflow.Id}", workflow);
+        using var restoredResponse = await client.GetAsync("/api/workflows/current");
+        var restored = await restoredResponse.Content.ReadFromJsonAsync<WorkflowDefinition>();
+
+        Assert.Equal(HttpStatusCode.Created, publishResponse.StatusCode);
+        Assert.Equal(1, publication!.Version);
+        Assert.Equal(HttpStatusCode.Created, workflowResponse.StatusCode);
+        Assert.Equal(form.Id, restored!.UserTasks[0].FormId);
+        Assert.Equal(1, restored.UserTasks[0].FormVersion);
+    }
+
+    [Fact]
+    public async Task WorkflowRejectsReferenceToMissingPublishedVersion()
+    {
+        using var client = factory.CreateClient();
+        await RegisterAsync(client, "Invalid Process Team", "owner@invalid-process.test");
+        var workflow = WorkflowDefinitionService.Create("Invalid workflow");
+        var task = WorkflowDefinitionService.AddUserTask(workflow, "Review");
+        task.FormId = Guid.NewGuid();
+        task.FormVersion = 99;
+
+        using var response = await client.PutAsJsonAsync($"/api/workflows/{workflow.Id}", workflow);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     public void Dispose()

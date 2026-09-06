@@ -10,6 +10,7 @@ The application now starts in a guided builder workspace with four tools:
 - **Header builder** creates reusable localized brands and navigation menus.
 - **Footer builder** creates reusable localized links and status widgets.
 - **Form builder** creates runnable forms with drag-and-drop fields and plugin-owned validation.
+- **Workflow builder** connects user tasks to immutable published form versions.
 
 Every draggable toolbox item also supports click-to-add for touch devices and accessibility.
 
@@ -94,6 +95,18 @@ Owners can open **Team**, invite a member as Editor or Viewer, and copy the gene
 
 Authenticated Workspace and Form requests are scoped from the tenant claim—not a client-supplied tenant id—then saved through `/api/workspaces` and `/api/forms`. Responses carry an `ETag`, and stale updates receive `409 Conflict` instead of overwriting a newer edit. Browser snapshots are also namespaced by tenant id, so accounts sharing a browser cannot load each other's local fallback.
 
+### Publishing and workflow binding
+
+`Save form` updates the editable draft. `Publish version` creates a detached, immutable snapshot numbered independently per form. Existing publications are never overwritten when the draft changes.
+
+The Workflow builder provides a first executable-domain slice for BPMN-style user tasks:
+
+- add ordered user tasks between Start and End;
+- select a published form and exact version for each task;
+- persist the workflow with optimistic concurrency;
+- reject missing or cross-tenant publication references on the API;
+- allow Viewers to inspect workflows while restricting changes to Owners and Editors.
+
 ## Next slice
 
-Connect immutable published form versions to BPMN user tasks.
+Add BPMN gateways and transitions, then create process instances that execute the version-locked user tasks.

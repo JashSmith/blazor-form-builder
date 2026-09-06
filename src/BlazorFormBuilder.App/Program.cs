@@ -18,6 +18,8 @@ builder.Services.AddScoped<BrowserFormDefinitionStore>();
 builder.Services.AddScoped<BrowserBuilderWorkspaceStore>();
 builder.Services.AddScoped<ServerFormDefinitionStore>();
 builder.Services.AddScoped<ServerBuilderWorkspaceStore>();
+builder.Services.AddScoped<IPublishedFormStore, ServerPublishedFormStore>();
+builder.Services.AddScoped<IWorkflowDefinitionStore, ServerWorkflowDefinitionStore>();
 builder.Services.AddScoped<IFormDefinitionStore, ResilientFormDefinitionStore>();
 builder.Services.AddScoped<IBuilderWorkspaceStore, ResilientBuilderWorkspaceStore>();
 

@@ -11,11 +11,16 @@ public sealed class BuilderInteractionTests : BunitContext
 {
     private readonly MemoryFormStore formStore = new();
     private readonly MemoryWorkspaceStore workspaceStore = new();
+    private readonly MemoryPublishedFormStore publicationStore;
+    private readonly MemoryWorkflowStore workflowStore = new();
 
     public BuilderInteractionTests()
     {
+        publicationStore = new(formStore);
         Services.AddSingleton<IFormDefinitionStore>(formStore);
         Services.AddSingleton<IBuilderWorkspaceStore>(workspaceStore);
+        Services.AddSingleton<IPublishedFormStore>(publicationStore);
+        Services.AddSingleton<IWorkflowDefinitionStore>(workflowStore);
         Services.AddStandardFormFieldPlugins();
     }
 
@@ -41,6 +46,10 @@ public sealed class BuilderInteractionTests : BunitContext
         component.Find("[data-testid='open-footer-builder']").Click();
         component.WaitForAssertion(() =>
             Assert.Contains("FOOTER LIBRARY", component.Markup, StringComparison.Ordinal));
+
+        component.Find("[data-testid='open-workflow-builder']").Click();
+        component.WaitForAssertion(() =>
+            Assert.NotNull(component.FindComponent<WorkflowDesigner>()));
     }
 
     [Fact]
@@ -171,6 +180,37 @@ public sealed class BuilderInteractionTests : BunitContext
         Assert.Contains("dir=\"rtl\"", component.Find(".preview-card").OuterHtml, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ValidFormCanPublishAnImmutableVersion()
+    {
+        var component = Render<FormDesigner>();
+        component.Find("[data-field-type='email']").Click();
+
+        component.Find("[data-testid='publish-form']").Click();
+
+        component.WaitForAssertion(() =>
+            Assert.Contains("Published immutable version 1", component.Markup, StringComparison.Ordinal));
+        Assert.Single(publicationStore.Publications, item => item.FormId == formStore.SavedForm!.Id);
+    }
+
+    [Fact]
+    public void WorkflowTaskStoresTheSelectedPublishedFormVersion()
+    {
+        var component = Render<WorkflowDesigner>();
+        var publication = publicationStore.Publications[0];
+        component.Find("[data-testid='add-user-task']").Click();
+
+        component.Find("[data-testid='task-publication']").Change(publication.PublicationId.ToString());
+        component.Find("[data-testid='save-workflow']").Click();
+
+        component.WaitForAssertion(() =>
+        {
+            Assert.NotNull(workflowStore.SavedWorkflow);
+            Assert.Equal(publication.FormId, workflowStore.SavedWorkflow.UserTasks[0].FormId);
+            Assert.Equal(publication.Version, workflowStore.SavedWorkflow.UserTasks[0].FormVersion);
+        });
+    }
+
     private sealed class MemoryFormStore : IFormDefinitionStore
     {
         public FormDefinition? SavedForm { get; private set; }
@@ -198,6 +238,65 @@ public sealed class BuilderInteractionTests : BunitContext
         {
             SaveCount++;
             SavedWorkspace = workspace;
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class MemoryPublishedFormStore(MemoryFormStore formStore) : IPublishedFormStore
+    {
+        public List<PublishedFormVersion> Publications { get; } =
+        [
+            CreatePublication(
+                new FormDefinition
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Existing form",
+                    Fields =
+                    [
+                        new() { Id = Guid.NewGuid(), Type = "text", Key = "name", Label = "Name" }
+                    ]
+                },
+                1)
+        ];
+
+        public ValueTask<IReadOnlyList<PublishedFormVersion>> ListAsync(
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<IReadOnlyList<PublishedFormVersion>>(Publications);
+
+        public ValueTask<PublishedFormVersion> PublishAsync(
+            Guid formId,
+            CancellationToken cancellationToken = default)
+        {
+            var publication = CreatePublication(
+                formStore.SavedForm!,
+                Publications.Count(item => item.FormId == formId) + 1);
+            Publications.Add(publication);
+            return ValueTask.FromResult(publication);
+        }
+
+        private static PublishedFormVersion CreatePublication(FormDefinition form, int version) => new()
+        {
+            PublicationId = Guid.NewGuid(),
+            FormId = form.Id,
+            Version = version,
+            PublishedAtUtc = DateTimeOffset.UtcNow,
+            PublishedByUserId = Guid.NewGuid(),
+            Definition = form
+        };
+    }
+
+    private sealed class MemoryWorkflowStore : IWorkflowDefinitionStore
+    {
+        public WorkflowDefinition? SavedWorkflow { get; private set; }
+
+        public ValueTask<WorkflowDefinition?> LoadAsync(CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<WorkflowDefinition?>(null);
+
+        public ValueTask SaveAsync(
+            WorkflowDefinition workflow,
+            CancellationToken cancellationToken = default)
+        {
+            SavedWorkflow = workflow;
             return ValueTask.CompletedTask;
         }
     }
