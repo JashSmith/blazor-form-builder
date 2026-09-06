@@ -5,9 +5,11 @@
     <Project Path="src/BlazorFormBuilder.Components/BlazorFormBuilder.Components.csproj" />
     <Project Path="src/BlazorFormBuilder.Plugins.Standard/BlazorFormBuilder.Plugins.Standard.csproj" />
     <Project Path="src/BlazorFormBuilder.App/BlazorFormBuilder.App.csproj" />
+    <Project Path="src/BlazorFormBuilder.Api/BlazorFormBuilder.Api.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/BlazorFormBuilder.Core.Tests/BlazorFormBuilder.Core.Tests.csproj" />
     <Project Path="tests/BlazorFormBuilder.Components.Tests/BlazorFormBuilder.Components.Tests.csproj" />
+    <Project Path="tests/BlazorFormBuilder.Api.Tests/BlazorFormBuilder.Api.Tests.csproj" />
   </Folder>
 </Solution>

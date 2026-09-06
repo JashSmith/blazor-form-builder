@@ -4,9 +4,11 @@ A plugin-first, low-code page and form designer built with standalone Blazor Web
 
 ## Builder workspace
 
-The application now starts in a working builder workspace with two tools:
+The application now starts in a guided builder workspace with four tools:
 
-- **Page builder** manages multiple pages, responsive grids, layout templates and page chrome.
+- **Page builder** manages multiple pages, responsive grids, and layout templates.
+- **Header builder** creates reusable localized brands and navigation menus.
+- **Footer builder** creates reusable localized links and status widgets.
 - **Form builder** creates runnable forms with drag-and-drop fields and plugin-owned validation.
 
 Every draggable toolbox item also supports click-to-add for touch devices and accessibility.
@@ -44,7 +46,8 @@ The form-designer MVP provides a working design-to-runtime flow:
 | `BlazorFormBuilder.Abstractions` | Stable plugin contract |
 | `BlazorFormBuilder.Components` | Reusable designer RCL |
 | `BlazorFormBuilder.Plugins.Standard` | Built-in fields packaged as an RCL plugin |
-| `BlazorFormBuilder.App` | Standalone WASM composition root |
+| `BlazorFormBuilder.App` | WASM client with server-first and local fallback stores |
+| `BlazorFormBuilder.Api` | ASP.NET Core host and versioned JSON persistence API |
 
 The dependency direction keeps field packages replaceable: the host discovers `IFormFieldPlugin` registrations and the designer renders their preview components dynamically.
 
@@ -54,7 +57,7 @@ Install the .NET 10 SDK, then run:
 
 ```bash
 dotnet restore BlazorFormBuilder.slnx
-dotnet run --project src/BlazorFormBuilder.App
+dotnet run --project src/BlazorFormBuilder.Api
 ```
 
 Run tests with:
@@ -77,8 +80,8 @@ After this repository bootstrap, create `develop` from `main` and open subsequen
 
 Open **Form builder**, drag fields from the toolbox onto the canvas, reorder them by dragging, configure them in the property panel, save the valid definition, then use **Preview form** to enter values and exercise each plugin's runtime validation.
 
-Drafts are currently stored in the browser's `localStorage` behind the `IFormDefinitionStore` abstraction. A server implementation can replace it without changing the designer RCL.
+The hosted app saves Workspace and Form documents through `/api/workspaces` and `/api/forms`. Responses carry an `ETag`, and stale updates receive `409 Conflict` instead of overwriting a newer edit. A browser-local snapshot remains available when the API is offline or the standalone WASM project is used.
 
 ## Next slice
 
-Persist versioned form definitions through an ASP.NET Core API, add authentication and optimistic concurrency, then connect published forms to BPMN user tasks.
+Add authentication and tenant ownership, then connect published form versions to BPMN user tasks.
